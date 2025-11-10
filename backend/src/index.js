@@ -20,7 +20,12 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 const authRoutes = require('./routes/auth');
+const characterRoutes = require('./routes/characters');
+const goalRoutes = require('./routes/goals');
+
 app.use('/api/auth', authRoutes);
+app.use('/api/characters', characterRoutes);
+app.use('/api/goals', goalRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
