@@ -9,7 +9,7 @@ Keep document creation to a minimum and file structure clean.
 
 **Dumbbells & Dragons** is an AI-driven RPG that gamifies wellness goals into persistent narrative experiences. Users complete real-world health goals (exercise, meditation, reading) which translates into fantasy character progression. The system maintains story coherence across weeks to months using a multi-agent AI architecture with explicit memory systems.
 
-**Current Status:** Sprint 1 in progress - Foundation & Data Layer (Week 1, Day 3)
+**Current Status:** Sprint 1 in progress - Foundation & Data Layer (Week 1, Day 4)
 
 **Completed:**
 - ✅ Backend project structure initialized
@@ -21,13 +21,21 @@ Keep document creation to a minimum and file structure clean.
 - ✅ XP calculation function and character_stats view deployed
 - ✅ Goal streak tracking function deployed
 - ✅ Dev server running and responding to health checks
+- ✅ Authentication system fully implemented and tested
+  - JWT-based authentication with 7-day expiry
+  - Password hashing with bcrypt (10 rounds)
+  - Registration with email/username validation
+  - Login with email or username support
+  - Protected route middleware
+  - /api/auth/register, /login, /me, /logout endpoints
 
 **In Progress:**
-- 🔄 Authentication service (JWT, bcrypt, login/register)
+- 🔄 Character and goal services with API endpoints
 
 **Next Steps:**
-- Implement authentication service and routes
-- Build character and goal services with API endpoints
+- Build character service (create, get character)
+- Build goal service (create, list, complete goals)
+- Implement XP award system
 - Create frontend foundation (React + Tailwind + Zustand)
 
 ## Key Architecture Decisions (Research-Informed)

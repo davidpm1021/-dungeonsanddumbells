@@ -18,10 +18,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Routes will be added here
-// app.use('/api/auth', authRoutes);
-// app.use('/api/characters', characterRoutes);
-// app.use('/api/goals', goalRoutes);
+// Routes
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
