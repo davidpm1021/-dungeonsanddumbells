@@ -76,6 +76,9 @@ class QuestCreator {
 
       return {
         ...questData,
+        // Ensure difficulty is set from decision (AI sometimes omits it)
+        difficulty: questData.difficulty || decision.suggestedDifficulty || 'medium',
+        questType: questData.questType || decision.questType || 'side',
         metadata: {
           model: response.model,
           latency: response.latency,

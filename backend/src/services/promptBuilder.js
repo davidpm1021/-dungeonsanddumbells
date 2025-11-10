@@ -337,6 +337,53 @@ Respond with a JSON object:
   "keyEvents": [string] (3-5 most important),
   "participantsInvolved": [string] (NPCs),
   "statChanges": { "STR": number, ... }
+}`,
+
+      consequence_engine: `${character.name} has ${context.questFailed ? 'not completed' : 'completed'} the quest "${context.quest.title}".
+
+<quest_details>
+Title: ${context.quest.title}
+Description: ${context.quest.description}
+Objectives: ${context.quest.objectives?.map(obj => obj.description).join('; ')}
+${context.quest.npcInvolved ? `NPC Involved: ${context.quest.npcInvolved}` : ''}
+</quest_details>
+
+${context.recentMemories && context.recentMemories.length > 0 ? `
+<recent_events>
+${context.recentMemories.slice(0, 5).map(m => `- ${m.event_description}`).join('\n')}
+</recent_events>` : ''}
+
+Generate a narrative outcome (150-250 words) that:
+${context.questFailed ? `
+- Acknowledges the struggle without shaming
+- Offers a compassionate path forward
+- Suggests this opens different opportunities
+- Maintains hope and encouragement` : `
+- Celebrates the achievement genuinely
+- References at least one past event or character detail
+- Shows consequences of player's actions
+- Sets up potential future story hooks
+- Maintains consistent NPC relationships`}
+
+CRITICAL: ${context.questFailed ? 'Be compassionate, not punishing. Life happens.' : 'Reference the player\'s journey. This moment should feel earned and connected to past actions.'}
+
+Respond with a JSON object:
+{
+  "narrativeText": string (150-250 words, present tense, second person),
+  "npcInteractions": [
+    {
+      "npc": string,
+      "relationshipChange": "improved" | "worsened" | "neutral",
+      "note": string
+    }
+  ],
+  "worldStateChanges": [
+    {
+      "change": string,
+      "description": string
+    }
+  ],
+  "futurePlotHooks": [string] (1-3 potential future quest ideas)
 }`
     };
 

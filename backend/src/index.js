@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+const redisClient = require('./config/redis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,12 +27,18 @@ const characterRoutes = require('./routes/characters');
 const goalRoutes = require('./routes/goals');
 const narrativeRoutes = require('./routes/narrative');
 const questRoutes = require('./routes/quests');
+const storyRoutes = require('./routes/story');
+const lorekeeperRoutes = require('./routes/lorekeeper');
+const monitoringRoutes = require('./routes/monitoring');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/narrative', narrativeRoutes);
 app.use('/api/quests', questRoutes);
+app.use('/api/story', storyRoutes);
+app.use('/api/lorekeeper', lorekeeperRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -45,11 +54,55 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Dumbbells & Dragons API running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-});
+// Initialize server with Redis connection
+async function startServer() {
+  try {
+    // Initialize Redis (non-blocking, will fallback to PostgreSQL if fails)
+    console.log('[Server] Initializing Redis...');
+    await redisClient.connect();
+
+    // Start Express server
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Dumbbells & Dragons API running on port ${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`💾 Redis: ${redisClient.isAvailable() ? 'Connected' : 'Unavailable (using PostgreSQL fallback)'}`);
+    });
+
+    // Graceful shutdown
+    const gracefulShutdown = async (signal) => {
+      console.log(`\n[Server] ${signal} received, shutting down gracefully...`);
+
+      // Stop accepting new connections
+      server.close(async () => {
+        console.log('[Server] HTTP server closed');
+
+        // Close Redis connection
+        await redisClient.disconnect();
+
+        console.log('[Server] Shutdown complete');
+        process.exit(0);
+      });
+
+      // Force shutdown after 10 seconds
+      setTimeout(() => {
+        console.error('[Server] Forced shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    // Handle shutdown signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  } catch (error) {
+    console.error('[Server] Failed to start:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
 
 module.exports = app;
 

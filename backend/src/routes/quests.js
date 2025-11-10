@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const questService = require('../services/questService');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authenticateToken } = require('../middleware/auth');
 
 /**
  * Quest Routes
@@ -11,7 +11,7 @@ const authMiddleware = require('../middleware/authMiddleware');
  */
 
 // Apply auth middleware to all quest routes
-router.use(authMiddleware);
+router.use(authenticateToken);
 
 /**
  * POST /api/quests/generate
@@ -262,6 +262,66 @@ router.post('/from-template', async (req, res) => {
     }
 
     res.status(500).json({ error: 'Failed to generate quest from template' });
+  }
+});
+
+/**
+ * POST /api/quests/complete
+ *
+ * Complete a quest and trigger consequence engine
+ * Body: { characterId: number, questId: string, quest: object }
+ * (For E2E testing - no auth)
+ */
+router.post('/complete', async (req, res) => {
+  try {
+    const { characterId, questId, quest } = req.body;
+
+    if (!characterId || !quest) {
+      return res.status(400).json({ error: 'characterId and quest are required' });
+    }
+
+    const consequenceEngine = require('../services/agents/consequenceEngine');
+    const narrativeSummary = require('../services/narrativeSummary');
+
+    // Get character
+    const character = await questService.getCharacter(characterId);
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    // Get recent memories for RAG context
+    const pool = require('../config/database');
+    const memoriesResult = await pool.query(
+      `SELECT * FROM narrative_events
+       WHERE character_id = $1
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [characterId]
+    );
+
+    // Generate outcome
+    const outcome = await consequenceEngine.generateOutcome(
+      quest,
+      character,
+      characterId,
+      memoriesResult.rows
+    );
+
+    // Update narrative summary
+    const updatedSummary = await narrativeSummary.updateSummary(characterId, {
+      quest,
+      outcome
+    });
+
+    res.json({
+      success: true,
+      outcome,
+      summary: updatedSummary
+    });
+
+  } catch (error) {
+    console.error('[QuestRoutes] Error completing quest:', error);
+    res.status(500).json({ error: 'Failed to complete quest' });
   }
 });
 

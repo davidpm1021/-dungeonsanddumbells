@@ -3,6 +3,7 @@ const storyCoordinator = require('./agents/storyCoordinator');
 const questCreator = require('./agents/questCreator');
 const lorekeeper = require('./agents/lorekeeper');
 const memoryManager = require('./memoryManager');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 /**
  * Quest Service
@@ -231,7 +232,7 @@ class QuestService {
       'SELECT * FROM character_stats WHERE id = $1',
       [characterId]
     );
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -283,7 +284,7 @@ class QuestService {
     query += ' GROUP BY q.id ORDER BY q.created_at DESC';
 
     const result = await pool.query(query, params);
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 
   /**
@@ -319,7 +320,7 @@ class QuestService {
       throw new Error('Quest not found');
     }
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**

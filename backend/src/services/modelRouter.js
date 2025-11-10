@@ -24,7 +24,7 @@ class ModelRouter {
         use_for: ['validation', 'simple_summaries', 'formatting', 'classification']
       },
       sonnet35: {
-        id: 'claude-3-5-sonnet-20250514',
+        id: 'claude-3-5-sonnet-20241022',
         speed: 'fast',
         cost: 'medium',
         quality: 'excellent',
@@ -120,14 +120,14 @@ class ModelRouter {
   getModelForAgent(agentType) {
     const agentMap = {
       'story_coordinator': this.models.sonnet45.id,
-      'quest_creator': this.models.sonnet35.id,
+      'quest_creator': this.models.sonnet45.id, // Use Sonnet 4 since 3.5 not available in API
       'lorekeeper': this.models.sonnet45.id,
-      'memory_manager': this.models.sonnet35.id,
+      'memory_manager': this.models.sonnet45.id, // Use Sonnet 4 since 3.5 not available in API
       'consequence_engine': this.models.sonnet45.id,
-      'npc_generator': this.models.sonnet35.id
+      'npc_generator': this.models.sonnet45.id // Use Sonnet 4 since 3.5 not available in API
     };
 
-    return agentMap[agentType] || this.models.sonnet35.id;
+    return agentMap[agentType] || this.models.sonnet45.id;
   }
 
   /**
@@ -140,11 +140,11 @@ class ModelRouter {
   estimateCost(inputTokens, outputTokens, modelId) {
     const pricing = {
       'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
-      'claude-3-5-sonnet-20250514': { input: 3.00, output: 15.00 },
+      'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
       'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 }
     };
 
-    const model = pricing[modelId] || pricing['claude-3-5-sonnet-20250514'];
+    const model = pricing[modelId] || pricing['claude-3-5-sonnet-20241022'];
 
     return (inputTokens / 1000000 * model.input) + (outputTokens / 1000000 * model.output);
   }

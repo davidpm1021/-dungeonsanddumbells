@@ -48,8 +48,9 @@ class Lorekeeper {
         useCache: false // Don't cache validations (each quest is unique)
       });
 
-      // Parse validation result
-      const validation = JSON.parse(response.content);
+      // Parse validation result (strip markdown code blocks if present)
+      const cleanedContent = this.extractJSON(response.content);
+      const validation = JSON.parse(cleanedContent);
 
       // Validate response structure
       this.validateResult(validation);
@@ -75,6 +76,26 @@ class Lorekeeper {
       // Fallback to rule-based validation
       return this.getFallbackValidation(quest);
     }
+  }
+
+  /**
+   * Extract JSON from response (handles markdown code blocks)
+   */
+  extractJSON(content) {
+    // Remove markdown code blocks if present
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      return jsonMatch[1].trim();
+    }
+
+    // Also handle plain ``` blocks
+    const codeMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+    if (codeMatch) {
+      return codeMatch[1].trim();
+    }
+
+    // Return as-is if no code blocks found
+    return content.trim();
   }
 
   /**

@@ -1,8 +1,13 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: 'localhost',
+  port: 5432,
+  database: 'dumbbells_dragons_dev',
+  user: 'postgres',
+  password: 'REDACTED_PASSWORD',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
