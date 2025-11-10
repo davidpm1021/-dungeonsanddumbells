@@ -88,4 +88,70 @@ export const goals = {
   delete: (id) => api.delete(`/goals/${id}`),
 };
 
+// Quest endpoints
+export const quests = {
+  generate: (characterId) =>
+    api.post('/quests/generate', { characterId }),
+
+  list: (characterId, status = null) =>
+    api.get('/quests', { params: { characterId, status } }),
+
+  getById: (id) => api.get(`/quests/${id}`),
+
+  complete: (id, outcome) =>
+    api.post(`/quests/${id}/complete`, { outcome }),
+
+  fail: (id, reason) =>
+    api.post(`/quests/${id}/fail`, { reason }),
+
+  getActive: (characterId) =>
+    api.get('/quests/active', { params: { characterId } }),
+};
+
+// Narrative endpoints
+export const narrative = {
+  getContext: (characterId) =>
+    api.get('/narrative/context', { params: { characterId } }),
+
+  getWorkingMemory: (characterId, limit = 10) =>
+    api.get('/narrative/memory/working', { params: { characterId, limit } }),
+
+  getEpisodes: (characterId) =>
+    api.get('/narrative/memory/episodes', { params: { characterId } }),
+
+  getLongTermMemory: (characterId) =>
+    api.get('/narrative/memory/longterm', { params: { characterId } }),
+
+  getWorldState: (characterId) =>
+    api.get('/narrative/world-state', { params: { characterId } }),
+
+  getSummary: (characterId) =>
+    api.get('/narrative/summary', { params: { characterId } }),
+
+  getWorldBible: () =>
+    api.get('/narrative/world-bible'),
+};
+
+// Monitoring endpoints (admin/debugging)
+export const monitoring = {
+  health: () => api.get('/monitoring/health'),
+
+  cacheStats: () => api.get('/monitoring/cache-stats'),
+
+  agentStats: (characterId = null, days = 7) =>
+    api.get('/monitoring/agent-stats', { params: { characterId, days } }),
+
+  lorekeeperValidation: (days = 7) =>
+    api.get('/monitoring/lorekeeper-validation', { params: { days } }),
+
+  latency: (agentType = null, days = 7) =>
+    api.get('/monitoring/latency', { params: { agentType, days } }),
+
+  costPerUser: (days = 7) =>
+    api.get('/monitoring/cost-per-user', { params: { days } }),
+
+  dashboard: (days = 7) =>
+    api.get('/monitoring/dashboard', { params: { days } }),
+};
+
 export default api;

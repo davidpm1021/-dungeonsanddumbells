@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 class CharacterService {
   /**
@@ -162,6 +163,18 @@ class CharacterService {
       cha: char.cha
     });
 
+    // Calculate XP info for each stat
+    const strXP = this.calculateXPNeeded(char.str_xp);
+    const dexXP = this.calculateXPNeeded(char.dex_xp);
+    const conXP = this.calculateXPNeeded(char.con_xp);
+    const intXP = this.calculateXPNeeded(char.int_xp);
+    const wisXP = this.calculateXPNeeded(char.wis_xp);
+    const chaXP = this.calculateXPNeeded(char.cha_xp);
+
+    // Calculate total XP
+    const total_xp = char.str_xp + char.dex_xp + char.con_xp +
+                     char.int_xp + char.wis_xp + char.cha_xp;
+
     return {
       id: char.id,
       userId: char.user_id,
@@ -169,22 +182,32 @@ class CharacterService {
       class: char.class,
       level: level,
       gold: char.gold,
-      stats: {
-        str: char.str,
-        dex: char.dex,
-        con: char.con,
-        int: char.int,
-        wis: char.wis,
-        cha: char.cha
-      },
-      xp: {
-        str: this.calculateXPNeeded(char.str_xp),
-        dex: this.calculateXPNeeded(char.dex_xp),
-        con: this.calculateXPNeeded(char.con_xp),
-        int: this.calculateXPNeeded(char.int_xp),
-        wis: this.calculateXPNeeded(char.wis_xp),
-        cha: this.calculateXPNeeded(char.cha_xp)
-      },
+      totalXp: total_xp,
+
+      // Flat stat values
+      str: char.str,
+      dex: char.dex,
+      con: char.con,
+      int: char.int,
+      wis: char.wis,
+      cha: char.cha,
+
+      // XP values
+      strXp: strXP.remaining,
+      dexXp: dexXP.remaining,
+      conXp: conXP.remaining,
+      intXp: intXP.remaining,
+      wisXp: wisXP.remaining,
+      chaXp: chaXP.remaining,
+
+      // XP needed for next level
+      strXpNeeded: strXP.nextCost,
+      dexXpNeeded: dexXP.nextCost,
+      conXpNeeded: conXP.nextCost,
+      intXpNeeded: intXP.nextCost,
+      wisXpNeeded: wisXP.nextCost,
+      chaXpNeeded: chaXP.nextCost,
+
       createdAt: char.created_at,
       lastActive: char.last_active
     };

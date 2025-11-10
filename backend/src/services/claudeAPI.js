@@ -1,6 +1,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const crypto = require('crypto');
 const pool = require('../config/database');
+const cachingLayer = require('./cachingLayer');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 /**
  * Claude API Service
@@ -250,31 +252,16 @@ class ClaudeAPI {
   }
 
   /**
-   * Check cache for existing response
+   * Check cache for existing response (uses multi-tier caching layer)
    */
   async checkCache(messages, system, model) {
-    const cacheKey = this.generateCacheKey(messages, system, model);
-
     try {
-      const result = await pool.query(
-        `SELECT response_data, hit_count
-         FROM response_cache
-         WHERE cache_key_hash = $1 AND expires_at > NOW()`,
-        [cacheKey]
-      );
+      const cached = await cachingLayer.getL1(messages, system, model);
 
-      if (result.rows.length > 0) {
-        // Update hit count and last hit time
-        await pool.query(
-          `UPDATE response_cache
-           SET hit_count = hit_count + 1, last_hit_at = NOW()
-           WHERE cache_key_hash = $1`,
-          [cacheKey]
-        );
-
+      if (cached) {
         return {
-          response: result.rows[0].response_data,
-          hitCount: result.rows[0].hit_count + 1
+          response: cached,
+          hitCount: 1 // Hit count is tracked internally by cachingLayer
         };
       }
 
@@ -286,21 +273,11 @@ class ClaudeAPI {
   }
 
   /**
-   * Store response in cache
+   * Store response in cache (uses multi-tier caching layer)
    */
   async storeInCache(messages, system, model, response) {
-    const cacheKey = this.generateCacheKey(messages, system, model);
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour TTL
-
     try {
-      await pool.query(
-        `INSERT INTO response_cache (cache_key_hash, response_data, expires_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (cache_key_hash)
-         DO UPDATE SET response_data = $2, expires_at = $3, hit_count = 0`,
-        [cacheKey, JSON.stringify(response), expiresAt]
-      );
+      await cachingLayer.setL1(messages, system, model, response, 24); // 24-hour TTL
     } catch (error) {
       console.error('[ClaudeAPI] Cache store failed:', error.message);
       // Don't throw - caching failures shouldn't break the flow
@@ -394,7 +371,7 @@ class ClaudeAPI {
          GROUP BY agent_type`;
 
     const result = await pool.query(query, characterId ? [characterId] : []);
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 }
 

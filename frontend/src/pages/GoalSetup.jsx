@@ -69,7 +69,7 @@ export default function GoalSetup() {
       }
 
       const response = await goals.create(goalData);
-      const newGoal = response.data;
+      const newGoal = response.data.goal;
 
       addGoal(newGoal);
       setGoalList([...goalList, newGoal]);
@@ -124,11 +124,11 @@ export default function GoalSetup() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-gray-900">{goal.title}</h3>
+                      <h3 className="font-medium text-gray-900">{goal.name}</h3>
                       <span
-                        className={`stat-badge-${goal.stat} px-2 py-0.5 rounded text-xs font-medium`}
+                        className={`stat-badge-${goal.stat_mapping?.toLowerCase()} px-2 py-0.5 rounded text-xs font-medium`}
                       >
-                        {goal.stat.toUpperCase()}
+                        {goal.stat_mapping}
                       </span>
                       <span className="text-xs text-gray-500">
                         {FREQUENCIES[goal.frequency]}
@@ -138,8 +138,8 @@ export default function GoalSetup() {
                       <p className="text-sm text-gray-600">{goal.description}</p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      Type: {GOAL_TYPES[goal.type]}
-                      {goal.type === 'quantitative' && ` (Target: ${goal.target_value})`}
+                      Type: {GOAL_TYPES[goal.goal_type]}
+                      {goal.goal_type === 'quantitative' && ` (Target: ${goal.target_value})`}
                     </p>
                   </div>
                 </div>

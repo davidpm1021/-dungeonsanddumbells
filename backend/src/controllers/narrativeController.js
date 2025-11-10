@@ -337,3 +337,92 @@ exports.getWorldBible = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get narrative summary with stats
+ */
+exports.getNarrativeSummaryWithStats = async (req, res) => {
+  try {
+    const characterId = parseInt(req.params.characterId);
+    const narrativeSummary = require('../services/narrativeSummary');
+
+    const summary = await narrativeSummary.getSummary(characterId);
+    const stats = await narrativeSummary.getSummaryStats(characterId);
+
+    res.json({
+      success: true,
+      summary,
+      stats
+    });
+  } catch (error) {
+    console.error('Error fetching narrative summary:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch narrative summary'
+    });
+  }
+};
+
+/**
+ * Get narrative events for character
+ */
+exports.getNarrativeEvents = async (req, res) => {
+  try {
+    const characterId = parseInt(req.params.characterId);
+    const limit = parseInt(req.query.limit) || 10;
+    const pool = require('../config/database');
+
+    const result = await pool.query(
+      `SELECT * FROM narrative_events
+       WHERE character_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [characterId, limit]
+    );
+
+    res.json({
+      success: true,
+      events: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching narrative events:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch narrative events'
+    });
+  }
+};
+
+/**
+ * RAG retrieval endpoint
+ */
+exports.retrieveRelevantEvents = async (req, res) => {
+  try {
+    const { characterId, query, k } = req.body;
+    const narrativeRAG = require('../services/narrativeRAG');
+
+    if (!characterId || !query) {
+      return res.status(400).json({
+        success: false,
+        error: 'characterId and query are required'
+      });
+    }
+
+    const events = await narrativeRAG.retrieveRelevantEvents(
+      characterId,
+      query,
+      k || 5
+    );
+
+    res.json({
+      success: true,
+      events
+    });
+  } catch (error) {
+    console.error('Error retrieving relevant events:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve relevant events'
+    });
+  }
+};

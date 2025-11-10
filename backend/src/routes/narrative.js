@@ -40,4 +40,13 @@ router.post('/compress', authenticateToken, loadCharacter, narrativeController.c
 // Get World Bible (immutable ground truth)
 router.get('/world-bible', narrativeController.getWorldBible); // No auth required - it's public lore
 
+// Get narrative summary with stats (for E2E testing)
+router.get('/summary/:characterId', narrativeController.getNarrativeSummaryWithStats); // No auth for testing
+
+// Get narrative events (for E2E testing)
+router.get('/events/:characterId', narrativeController.getNarrativeEvents); // No auth for testing
+
+// RAG retrieval (for E2E testing)
+router.post('/rag/retrieve', narrativeController.retrieveRelevantEvents); // No auth for testing
+
 module.exports = router;

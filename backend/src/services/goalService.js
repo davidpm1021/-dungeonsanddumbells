@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const characterService = require('./characterService');
 const memoryManager = require('./memoryManager');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 class GoalService {
   /**
@@ -45,7 +46,7 @@ class GoalService {
       [characterId, name, description, statMapping.toUpperCase(), goalType, targetValue, freq]
     );
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -58,10 +59,10 @@ class GoalService {
 
     const result = await pool.query(query, [characterId]);
 
-    // Add streak info to each goal
+    // Add streak info to each goal and transform to camelCase
     const goalsWithStreaks = await Promise.all(
       result.rows.map(async (goal) => ({
-        ...goal,
+        ...transformKeysToCamel(goal),
         currentStreak: await this.getGoalStreak(goal.id),
         completedToday: await this.isCompletedToday(goal.id)
       }))
@@ -83,7 +84,7 @@ class GoalService {
       throw new Error('Goal not found');
     }
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -151,7 +152,7 @@ class GoalService {
     await memoryManager.updateNarrativeSummary(goal.character_id, summaryUpdate);
 
     return {
-      completion: completion.rows[0],
+      completion: transformKeysToCamel(completion.rows[0]),
       xpAwarded,
       statMapping: goal.stat_mapping,
       character: updatedCharacter,
@@ -244,7 +245,7 @@ class GoalService {
       [goalId]
     );
 
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 
   /**
@@ -259,7 +260,7 @@ class GoalService {
       [goalId, limit, offset]
     );
 
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 
   /**
@@ -293,7 +294,7 @@ class GoalService {
       values
     );
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -312,7 +313,7 @@ class GoalService {
       throw new Error('Goal not found');
     }
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 }
 

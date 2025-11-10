@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 const SALT_ROUNDS = 10;
 
@@ -51,7 +52,7 @@ class AuthService {
       [email.toLowerCase(), username.toLowerCase(), passwordHash]
     );
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -131,7 +132,7 @@ class AuthService {
       throw new Error('User not found');
     }
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 }
 

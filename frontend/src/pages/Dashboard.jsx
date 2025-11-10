@@ -132,7 +132,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Total XP</p>
-              <p className="text-2xl font-bold text-primary">{character.total_xp}</p>
+              <p className="text-2xl font-bold text-primary">{character.totalXp}</p>
             </div>
           </div>
         </div>
@@ -146,8 +146,8 @@ export default function Dashboard() {
                 key={stat}
                 stat={stat}
                 value={character[stat]}
-                xp={character[`${stat}_xp`]}
-                xpNeeded={character[`${stat}_xp_needed`]}
+                xp={character[`${stat}Xp`]}
+                xpNeeded={character[`${stat}XpNeeded`]}
               />
             ))}
           </div>

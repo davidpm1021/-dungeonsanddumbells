@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { transformKeysToCamel } = require('../utils/caseTransform');
 
 /**
  * MemoryManager Service
@@ -76,7 +77,7 @@ class MemoryManager {
     // Cleanup: Keep only last 10 working memories
     await this.pruneWorkingMemory(characterId);
 
-    return eventResult.rows[0];
+    return transformKeysToCamel(eventResult.rows[0]);
   }
 
   /**
@@ -91,7 +92,7 @@ class MemoryManager {
       [characterId, limit]
     );
 
-    return result.rows.reverse(); // Return chronologically
+    return transformKeysToCamel(result.rows.reverse()); // Return chronologically
   }
 
   /**
@@ -216,7 +217,7 @@ class MemoryManager {
       [characterId]
     );
 
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 
   /**
@@ -292,9 +293,11 @@ class MemoryManager {
     );
 
     // Combine and sort by relevance
-    return [...result.rows, ...eventResults.rows]
-      .sort((a, b) => (b.importance_score || 0.5) - (a.importance_score || 0.5))
-      .slice(0, limit);
+    const combined = [...result.rows, ...eventResults.rows];
+    return transformKeysToCamel(
+      combined.sort((a, b) => (b.importance_score || 0.5) - (a.importance_score || 0.5))
+        .slice(0, limit)
+    );
   }
 
   /**
@@ -372,7 +375,7 @@ class MemoryManager {
       return await this.getWorldState(characterId);
     }
 
-    return result.rows[0];
+    return transformKeysToCamel(result.rows[0]);
   }
 
   /**
@@ -447,7 +450,7 @@ class MemoryManager {
       []
     );
 
-    return result.rows;
+    return transformKeysToCamel(result.rows);
   }
 }
 

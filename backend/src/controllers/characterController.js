@@ -22,10 +22,7 @@ class CharacterController {
         characterClass
       );
 
-      res.status(201).json({
-        message: 'Character created successfully',
-        character
-      });
+      res.status(201).json(character);
     } catch (err) {
       if (err.message.includes('already has a character')) {
         return res.status(409).json({ error: err.message });
@@ -62,7 +59,7 @@ class CharacterController {
       // Update last active
       await characterService.updateLastActive(character.id);
 
-      res.json({ character });
+      res.json(character);
     } catch (err) {
       console.error('Get character error:', err);
       res.status(500).json({
@@ -81,7 +78,7 @@ class CharacterController {
       const { id } = req.params;
       const character = await characterService.getCharacterById(parseInt(id));
 
-      res.json({ character });
+      res.json(character);
     } catch (err) {
       if (err.message === 'Character not found') {
         return res.status(404).json({ error: err.message });
