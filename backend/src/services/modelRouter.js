@@ -24,7 +24,7 @@ class ModelRouter {
         use_for: ['validation', 'simple_summaries', 'formatting', 'classification']
       },
       sonnet35: {
-        id: 'claude-3-5-sonnet-20241022',
+        id: 'claude-3-5-sonnet-20250514',
         speed: 'fast',
         cost: 'medium',
         quality: 'excellent',
@@ -140,11 +140,11 @@ class ModelRouter {
   estimateCost(inputTokens, outputTokens, modelId) {
     const pricing = {
       'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
-      'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
+      'claude-3-5-sonnet-20250514': { input: 3.00, output: 15.00 },
       'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 }
     };
 
-    const model = pricing[modelId] || pricing['claude-3-5-sonnet-20241022'];
+    const model = pricing[modelId] || pricing['claude-3-5-sonnet-20250514'];
 
     return (inputTokens / 1000000 * model.input) + (outputTokens / 1000000 * model.output);
   }
