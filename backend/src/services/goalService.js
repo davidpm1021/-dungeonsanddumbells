@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const characterService = require('./characterService');
+const memoryManager = require('./memoryManager');
 
 class GoalService {
   /**
@@ -102,7 +103,8 @@ class GoalService {
 
     // Check for streak bonus (every 7 days)
     const streak = await this.getGoalStreak(goalId);
-    if (streak > 0 && (streak + 1) % 7 === 0) {
+    const streakBonus = streak > 0 && (streak + 1) % 7 === 0;
+    if (streakBonus) {
       xpAwarded += 100; // 7-day streak bonus
     }
 
@@ -121,13 +123,72 @@ class GoalService {
       xpAwarded
     );
 
+    // Log narrative event to memory system
+    const eventDescription = this.generateEventDescription(goal, value, notes, streakBonus, streak + 1);
+
+    await memoryManager.storeInWorkingMemory(goal.character_id, {
+      eventType: 'goal_completion',
+      description: eventDescription,
+      participants: [],
+      statChanges: { [goal.stat_mapping]: xpAwarded },
+      goalId: goalId,
+      context: {
+        goalName: goal.name,
+        goalType: goal.goal_type,
+        value: value,
+        notes: notes,
+        streakBonus: streakBonus,
+        currentStreak: streak + 1,
+        frequency: goal.frequency
+      }
+    });
+
+    // Update narrative summary with progress
+    const summaryUpdate = streakBonus
+      ? `You maintained a ${streak + 1}-day streak on "${goal.name}", earning bonus XP! Your ${goal.stat_mapping} grows stronger.`
+      : `You completed "${goal.name}", growing your ${goal.stat_mapping}.`;
+
+    await memoryManager.updateNarrativeSummary(goal.character_id, summaryUpdate);
+
     return {
       completion: completion.rows[0],
       xpAwarded,
       statMapping: goal.stat_mapping,
       character: updatedCharacter,
-      streakBonus: (streak + 1) % 7 === 0
+      streakBonus: streakBonus
     };
+  }
+
+  /**
+   * Generate a narrative description for goal completion
+   */
+  generateEventDescription(goal, value, notes, streakBonus, currentStreak) {
+    const statNames = {
+      STR: 'strength',
+      DEX: 'agility',
+      CON: 'endurance',
+      INT: 'mental acuity',
+      WIS: 'inner wisdom',
+      CHA: 'confidence'
+    };
+
+    let description = `You completed "${goal.name}"`;
+
+    if (goal.goal_type === 'quantitative' && value) {
+      description += ` (${value}${goal.target_value ? `/${goal.target_value}` : ''})`;
+    }
+
+    description += `, strengthening your ${statNames[goal.stat_mapping] || goal.stat_mapping.toLowerCase()}.`;
+
+    if (streakBonus) {
+      description += ` Your dedication is rewarded - ${currentStreak} days of consistent effort!`;
+    }
+
+    if (notes) {
+      description += ` ${notes}`;
+    }
+
+    return description;
   }
 
   /**

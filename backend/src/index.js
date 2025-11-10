@@ -22,10 +22,12 @@ app.get('/api/health', (req, res) => {
 const authRoutes = require('./routes/auth');
 const characterRoutes = require('./routes/characters');
 const goalRoutes = require('./routes/goals');
+const narrativeRoutes = require('./routes/narrative');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/narrative', narrativeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -48,3 +50,4 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
