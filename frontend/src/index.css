@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Stat badges */
+  .stat-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .stat-badge-str {
+    @apply bg-str/10 text-str border border-str/20;
+  }
+
+  .stat-badge-dex {
+    @apply bg-dex/10 text-dex border border-dex/20;
+  }
+
+  .stat-badge-con {
+    @apply bg-con/10 text-con border border-con/20;
+  }
+
+  .stat-badge-int {
+    @apply bg-int/10 text-int border border-int/20;
+  }
+
+  .stat-badge-wis {
+    @apply bg-wis/10 text-wis border border-wis/20;
+  }
+
+  .stat-badge-cha {
+    @apply bg-cha/10 text-cha border border-cha/20;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary/90 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 active:scale-95;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 active:scale-95;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+  }
+}
