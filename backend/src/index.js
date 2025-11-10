@@ -23,11 +23,13 @@ const authRoutes = require('./routes/auth');
 const characterRoutes = require('./routes/characters');
 const goalRoutes = require('./routes/goals');
 const narrativeRoutes = require('./routes/narrative');
+const questRoutes = require('./routes/quests');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/narrative', narrativeRoutes);
+app.use('/api/quests', questRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
