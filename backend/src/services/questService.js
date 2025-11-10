@@ -1,4 +1,4 @@
-const pool = require('./config/database');
+const pool = require('../config/database');
 const storyCoordinator = require('./agents/storyCoordinator');
 const questCreator = require('./agents/questCreator');
 const lorekeeper = require('./agents/lorekeeper');
@@ -228,7 +228,7 @@ class QuestService {
    */
   async getCharacter(characterId) {
     const result = await pool.query(
-      'SELECT * FROM characters WHERE id = $1',
+      'SELECT * FROM character_stats WHERE id = $1',
       [characterId]
     );
     return result.rows[0];

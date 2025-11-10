@@ -27,7 +27,7 @@ class MemoryManagerAgent {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-      const pool = require('../config/database');
+      const pool = require('../../config/database');
       const result = await pool.query(
         `SELECT * FROM narrative_events
          WHERE character_id = $1
@@ -72,7 +72,7 @@ class MemoryManagerAgent {
   async generateEpisodeSummary(characterId, events) {
     try {
       // Get character data
-      const pool = require('../config/database');
+      const pool = require('../../config/database');
       const charResult = await pool.query(
         'SELECT * FROM characters WHERE id = $1',
         [characterId]
@@ -219,7 +219,7 @@ class MemoryManagerAgent {
   async batchSummarize(daysOld = 7) {
     try {
       // Get all characters with old events
-      const pool = require('../config/database');
+      const pool = require('../../config/database');
       const result = await pool.query(
         `SELECT DISTINCT character_id
          FROM narrative_events

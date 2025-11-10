@@ -1,7 +1,7 @@
 const claudeAPI = require('../claudeAPI');
 const modelRouter = require('../modelRouter');
 const promptBuilder = require('../promptBuilder');
-const { WORLD_BIBLE } = require('../data/worldBible');
+const { WORLD_BIBLE } = require('../../data/worldBible');
 
 /**
  * Quest Creator Agent
@@ -220,7 +220,7 @@ class QuestCreator {
    * @returns {Promise<Object>} - Quest data from template
    */
   async generateFromTemplate(templateName, characterId) {
-    const pool = require('../config/database');
+    const pool = require('../../config/database');
 
     const result = await pool.query(
       `SELECT * FROM quest_templates WHERE template_name = $1 AND is_active = true`,

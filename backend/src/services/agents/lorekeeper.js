@@ -1,6 +1,6 @@
 const claudeAPI = require('../claudeAPI');
 const modelRouter = require('../modelRouter');
-const { WORLD_BIBLE } = require('../data/worldBible');
+const { WORLD_BIBLE } = require('../../data/worldBible');
 
 /**
  * Lorekeeper Agent
