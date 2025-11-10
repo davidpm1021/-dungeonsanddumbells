@@ -43,17 +43,9 @@ async function runMigrations() {
 
         await pool.query('BEGIN');
         try {
-          // Split by semicolons but be careful with function definitions
-          const statements = sql
-            .split(/;(?=(?:[^']*'[^']*')*[^']*$)/) // Split on ; not inside quotes
-            .map(s => s.trim())
-            .filter(s => s.length > 0);
-
-          for (const statement of statements) {
-            if (statement) {
-              await pool.query(statement);
-            }
-          }
+          // Execute the entire SQL file as one statement
+          // PostgreSQL can handle multiple statements in a single query
+          await pool.query(sql);
 
           await pool.query(
             'INSERT INTO migrations (filename) VALUES ($1)',
