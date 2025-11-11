@@ -1,9 +1,15 @@
 import { useState } from 'react';
 
-const GOAL_TYPES = {
-  binary: 'Yes/No',
-  quantitative: 'Tracked',
-  streak: 'Streak',
+const GOAL_TYPE_INFO = {
+  binary: { label: 'Complete/Skip', icon: '✓', color: 'text-blue-600' },
+  quantitative: { label: 'Track Progress', icon: '📊', color: 'text-purple-600' },
+  streak: { label: 'Daily Streak', icon: '🔥', color: 'text-orange-600' },
+};
+
+const FREQUENCY_LABELS = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
 };
 
 export default function GoalCard({ goal, onComplete }) {
@@ -29,6 +35,8 @@ export default function GoalCard({ goal, onComplete }) {
   const canComplete =
     goal.goalType !== 'quantitative' || (quantValue && parseInt(quantValue) > 0);
 
+  const typeInfo = GOAL_TYPE_INFO[goal.goalType] || GOAL_TYPE_INFO.binary;
+
   return (
     <div className="card">
       <div className="flex items-start justify-between mb-3">
@@ -39,16 +47,30 @@ export default function GoalCard({ goal, onComplete }) {
               {goal.statMapping}
             </span>
           </div>
+
           {goal.description && <p className="text-sm text-gray-600 mb-2">{goal.description}</p>}
-          <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span>{GOAL_TYPES[goal.goalType]}</span>
-            <span>•</span>
-            <span className="capitalize">{goal.frequency}</span>
+
+          <div className="flex items-center flex-wrap gap-2 text-xs">
+            <span className={`${typeInfo.color} font-medium flex items-center gap-1`}>
+              <span>{typeInfo.icon}</span>
+              <span>{typeInfo.label}</span>
+            </span>
+            {goal.goalType === 'quantitative' && goal.targetValue && (
+              <>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-600 font-medium">
+                  Target: {goal.targetValue.toLocaleString()}
+                </span>
+              </>
+            )}
+            <span className="text-gray-400">•</span>
+            <span className="text-gray-600 capitalize">{FREQUENCY_LABELS[goal.frequency] || goal.frequency}</span>
             {goal.currentStreak > 0 && (
               <>
-                <span>•</span>
-                <span className="text-orange-600 font-medium">
-                  🔥 {goal.currentStreak} day streak
+                <span className="text-gray-400">•</span>
+                <span className="text-orange-600 font-medium flex items-center gap-1">
+                  <span>🔥</span>
+                  <span>{goal.currentStreak} day streak</span>
                 </span>
               </>
             )}

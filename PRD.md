@@ -1,10 +1,17 @@
 # Product Requirements Document: Dumbbells & Dragons MVP v2.0
 
+**⚠️ IMPORTANT:** This document describes the original MVP vision. See **PRD Addendum.md** for the evolved "Dynamic Narrative System" approach that adds:
+- Multiple concurrent quests (5-15 vs 1-3)
+- MMO-style quest log with player agency
+- Quest chains, branches, and dynamic world events
+- Meaningful player choices affecting narrative
+- This addendum represents a 7-day pre-beta enhancement sprint
+
 ## Executive Summary
 
-**Product Name:** Dumbbells & Dragons (D&D)  
-**Version:** 0.1 (MVP) - Research-Enhanced Architecture  
-**Target Launch:** Proof of Concept  
+**Product Name:** Dumbbells & Dragons (D&D)
+**Version:** 0.1 (MVP) - Research-Enhanced Architecture
+**Target Launch:** Proof of Concept
 **Core Value Prop:** An AI-driven RPG that adapts personal wellness goals into a persistent narrative experience, using specialized AI agents with explicit memory systems to maintain story coherence over weeks to months.
 
 **Critical Update Based on Research:** This PRD has been updated based on comprehensive research into production AI storytelling systems. The research reveals that **context windows alone cannot maintain long-form consistency**—even successful systems like Character.AI serving 20,000 queries/second experience the "11 kids problem" where characters forget established relationships. Our architecture now incorporates proven patterns from systems achieving 85-90% consistency rates through explicit memory systems, multi-agent validation, and RAG-enhanced frameworks.

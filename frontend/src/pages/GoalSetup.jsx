@@ -12,6 +12,12 @@ const STAT_INFO = {
   cha: { name: 'Charisma', color: 'cha', description: 'Social wellness and confidence' },
 };
 
+const GOAL_TYPE_INFO = {
+  binary: { label: 'Complete/Skip', icon: '✓', description: 'Binary (Yes/No)' },
+  quantitative: { label: 'Track Progress', icon: '📊', description: 'Quantitative (Track a number)' },
+  streak: { label: 'Daily Streak', icon: '🔥', description: 'Streak (Consecutive days)' },
+};
+
 const GOAL_TYPES = {
   binary: 'Binary (Yes/No)',
   quantitative: 'Quantitative (Track a number)',
@@ -115,35 +121,51 @@ export default function GoalSetup() {
         {/* Goals list */}
         {goalList.length > 0 && (
           <div className="card mb-6">
-            <h2 className="text-xl font-display font-bold mb-4">Your Goals</h2>
+            <h2 className="text-xl font-display font-bold mb-4">Your Goals ({goalList.length})</h2>
             <div className="space-y-3">
-              {goalList.map((goal) => (
-                <div
-                  key={goal.id}
-                  className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-gray-900">{goal.name}</h3>
-                      <span
-                        className={`stat-badge-${goal.stat_mapping?.toLowerCase()} px-2 py-0.5 rounded text-xs font-medium`}
-                      >
-                        {goal.stat_mapping}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {FREQUENCIES[goal.frequency]}
-                      </span>
+              {goalList.map((goal) => {
+                const typeInfo = GOAL_TYPE_INFO[goal.goalType || goal.goal_type] || GOAL_TYPE_INFO.binary;
+                const statMapping = goal.statMapping || goal.stat_mapping;
+                const goalType = goal.goalType || goal.goal_type;
+                const targetValue = goal.targetValue || goal.target_value;
+
+                return (
+                  <div
+                    key={goal.id}
+                    className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-gray-900">{goal.name}</h3>
+                        <span
+                          className={`stat-badge-${statMapping?.toLowerCase()} px-2 py-0.5 rounded text-xs font-medium`}
+                        >
+                          {statMapping}
+                        </span>
+                      </div>
+                      {goal.description && (
+                        <p className="text-sm text-gray-600 mb-2">{goal.description}</p>
+                      )}
+                      <div className="flex items-center flex-wrap gap-2 text-xs">
+                        <span className={`${typeInfo.icon ? 'flex items-center gap-1' : ''} text-gray-700 font-medium`}>
+                          {typeInfo.icon && <span>{typeInfo.icon}</span>}
+                          <span>{typeInfo.label}</span>
+                        </span>
+                        {goalType === 'quantitative' && targetValue && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-purple-600 font-medium">
+                              Target: {targetValue.toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                        <span className="text-gray-400">•</span>
+                        <span className="text-gray-600">{FREQUENCIES[goal.frequency]}</span>
+                      </div>
                     </div>
-                    {goal.description && (
-                      <p className="text-sm text-gray-600">{goal.description}</p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Type: {GOAL_TYPES[goal.goal_type]}
-                      {goal.goal_type === 'quantitative' && ` (Target: ${goal.target_value})`}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

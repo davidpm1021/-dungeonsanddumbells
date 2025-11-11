@@ -65,6 +65,9 @@ export const characters = {
   getMe: () => api.get('/characters/me'),
 
   getById: (id) => api.get(`/characters/${id}`),
+
+  getChoiceHistory: (id, limit = 20) =>
+    api.get(`/characters/${id}/choices`, { params: { limit } }),
 };
 
 // Goal endpoints
@@ -75,8 +78,8 @@ export const goals = {
 
   getById: (id) => api.get(`/goals/${id}`),
 
-  complete: (id, value, notes) =>
-    api.post(`/goals/${id}/complete`, { value, notes }),
+  complete: (id, payload = {}) =>
+    api.post(`/goals/${id}/complete`, payload),
 
   getStreak: (id) => api.get(`/goals/${id}/streak`),
 
@@ -98,6 +101,12 @@ export const quests = {
 
   getById: (id) => api.get(`/quests/${id}`),
 
+  start: (questId, characterId) =>
+    api.post(`/quests/${questId}/start`, { characterId }),
+
+  completeObjective: (questId, objectiveId, characterId) =>
+    api.post(`/quests/${questId}/objectives/${objectiveId}/complete`, { characterId }),
+
   complete: (id, outcome) =>
     api.post(`/quests/${id}/complete`, { outcome }),
 
@@ -106,6 +115,12 @@ export const quests = {
 
   getActive: (characterId) =>
     api.get('/quests/active', { params: { characterId } }),
+
+  getChoices: (questId, characterId) =>
+    api.get(`/quests/${questId}/choices`, { params: { characterId } }),
+
+  makeChoice: (questId, choiceId, characterId, optionId) =>
+    api.post(`/quests/${questId}/choices/${choiceId}/make`, { characterId, optionId }),
 };
 
 // Narrative endpoints

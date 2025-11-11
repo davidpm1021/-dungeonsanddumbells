@@ -53,7 +53,20 @@ class GoalController {
       const activeOnly = req.query.active !== 'false'; // Default true
       const goals = await goalService.getGoalsByCharacter(character.id, activeOnly);
 
-      res.json({ goals });
+      // Add completedToday and currentStreak for each goal
+      const goalsWithStatus = await Promise.all(
+        goals.map(async (goal) => {
+          const streak = await goalService.getGoalStreak(goal.id);
+          const completedToday = await goalService.isCompletedToday(goal.id);
+          return {
+            ...goal,
+            currentStreak: streak,
+            completedToday: completedToday
+          };
+        })
+      );
+
+      res.json({ goals: goalsWithStatus });
     } catch (err) {
       console.error('List goals error:', err);
       res.status(500).json({
@@ -110,9 +123,19 @@ class GoalController {
         notes
       );
 
+      // Fetch updated goal with completedToday and streak info
+      const updatedGoal = await goalService.getGoalById(parseInt(id));
+      const streak = await goalService.getGoalStreak(parseInt(id));
+      const completedToday = await goalService.isCompletedToday(parseInt(id));
+
       res.json({
         success: true,
         message: 'Goal completed successfully!',
+        goal: {
+          ...updatedGoal,
+          currentStreak: streak,
+          completedToday: completedToday
+        },
         completion: result.completion,
         xpAwarded: result.xpAwarded,
         statMapping: result.statMapping,

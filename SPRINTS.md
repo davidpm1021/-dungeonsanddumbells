@@ -572,190 +572,257 @@ Complete the agent system with Consequence Engine, implement RAG-based consisten
 
 ---
 
-## Sprint 6: Polish, Optimization & Integration Testing (Weeks 11-12)
+## Sprint 6: Dynamic Narrative System Implementation (Week 11 - 7 Days Pre-Beta)
+
+**⚠️ CRITICAL SPRINT:** This sprint implements the PRD Addendum "Dynamic Narrative System" - transforming from linear quest system to MMO-style living world with player agency.
+
+**Philosophy:** Players should have agency over the narrative, not just their stats. Multiple concurrent quests create a living quest log like WoW, not a single-track tutorial.
 
 ### Goal
-Refine the complete user experience, optimize performance and costs, and conduct comprehensive testing to ensure system meets all success criteria.
+Transform the quest system from linear single-quest tracking to a dynamic MMO-style narrative system with multiple concurrent quests, player choices, quest chains, and world events.
 
 ### User Stories
-- As a user, the app feels polished and professional
-- As a user, I can complete the full tutorial and first quests smoothly
-- As a developer, I have visibility into system health and costs
-- As a system, I operate efficiently with good cache hit rates and low latency
+- As a player, I can have 5-15 quests available at any time
+- As a player, I can make meaningful choices that affect the story
+- As a player, I can see quests organized by type (main story, side quests, world events, etc.)
+- As a player, my stat focus and goal priorities influence which quests are offered
+- As a player, my choices unlock/lock future content and affect NPC relationships
+- As the system, I generate dynamic quest pools based on player state and choices
+- As the system, I track story branches and consequences of player decisions
 
 ### Technical Tasks
 
-**Performance Optimization:**
-- [ ] Database query optimization:
-  - Add indexes on frequently queried columns
-  - Optimize N+1 queries with proper joins/includes
-  - Implement pagination for quest lists
-  - Profile slow queries and optimize
-  - Target: All queries <50ms
-- [ ] API response optimization:
-  - Compress responses (gzip)
-  - Implement request batching where possible
-  - Reduce payload sizes
-  - Target: P95 latency <500ms for API calls
-- [ ] Caching optimization:
-  - Fine-tune TTLs based on usage patterns
-  - Implement cache warming for frequent queries
-  - Monitor cache hit rates
-  - **Target: 50%+ combined cache hit rate**
+**Phase 1: Database & Quest Type System (Days 1-2)**
 
-**Cost Optimization:**
-- [ ] Implement L2 semantic cache if needed:
-  - Vector similarity matching for similar prompts
-  - Threshold: 0.85 similarity returns cached response
-  - Track additional cost savings
-- [ ] Model routing refinement:
-  - Analyze which queries can use cheaper models
-  - Tune complexity detection
-  - Monitor quality impact of tiering
-  - **Target: <$0.10 per active user per day**
-- [ ] Token optimization:
-  - Compress prompts where possible
-  - Remove redundant context
-  - Use efficient prompt templates
-  - Monitor token usage per agent
+- [ ] **Database Schema Enhancements:**
+  - [ ] Alter quests table:
+    - Add `quest_type` VARCHAR(50) - 'main_story', 'side_story', 'world_event', 'character_arc', 'corrective', 'exploration'
+    - Add `quest_chain_id` INT - Links related quests
+    - Add `unlocks_quest_ids` JSON - What completing this enables
+    - Add `mutually_exclusive_with` JSON - Can't have both active
+    - Add `time_pressure` VARCHAR(50) - 'urgent', 'relaxed', 'none'
+    - Add `story_branch` VARCHAR(100) - Which narrative path this belongs to
+    - Add `player_choice_origin` JSON - What player decision led to this quest
+    - Add `world_state_requirements` JSON - World conditions needed
+    - Add `narrative_weight` INT - How important (1-10)
 
-**Monitoring Dashboard:**
-- [ ] Create admin dashboard (`/admin/dashboard`):
-  - **Performance Metrics:**
-    - API latency (P50, P95, P99)
-    - Cache hit rates (L1, L3, combined)
-    - Agent success rates by type
-    - Error rates and types
-  - **Quality Metrics:**
-    - Lorekeeper validation pass rate (target: 85%+)
-    - User-reported consistency issues
-    - Quest completion rate
-  - **Cost Metrics:**
-    - API calls per agent type
-    - Token usage and costs
-    - Cost per active user
-    - Daily/weekly cost trends
-  - **Engagement Metrics:**
-    - Daily active users
-    - Goal completion rate
-    - Quest acceptance/completion rates
-    - Session length average
-- [ ] Alert system:
-  - Email/Slack alerts for critical thresholds
-  - Cache hit rate <40%
-  - Validation rate <75%
-  - Cost per user >$0.15/day
-  - Error rate >2%
+  - [ ] Create new tables:
+    - [ ] `quest_chains` (id, chain_name, description, starting_quest_id, branch_type, story_impact, stat_focus_primary, npc_involved)
+    - [ ] `story_branches` (id, character_id, branch_name, activated_at, key_choices JSON, current_status, npcs_affected JSON, world_state_changes JSON)
+    - [ ] `world_events` (id, event_name, event_description, trigger_condition JSON, affects_all_players BOOLEAN, duration_days, spawns_quest_type, narrative_consequences, starts_at, ends_at)
+    - [ ] `quest_choices` (id, quest_id, choice_point_description, choice_options JSON, story_consequences JSON, affects_branch, choice_made, chosen_at)
+    - [ ] `character_choices` (id, character_id, choice_context, choice_made, quest_id, narrative_impact, affected_npcs JSON, unlocked_content JSON, locked_content JSON, made_at)
 
-**UI/UX Polish:**
-- [ ] Design consistency review:
-  - Consistent spacing, colors, typography
-  - Responsive design tested on mobile/tablet/desktop
-  - Loading states for all async operations
-  - Error states with helpful messages
-- [ ] Accessibility:
-  - Keyboard navigation works
-  - Screen reader friendly (ARIA labels)
-  - Sufficient color contrast
-  - Focus indicators visible
-- [ ] Animations and transitions:
-  - Smooth XP progress bar animations
-  - Quest completion celebrations
-  - Page transitions
-  - Loading skeletons instead of spinners
-- [ ] Empty states:
-  - "No active quests" with CTA to generate new quest
-  - "No completed goals today" encouragement
-  - First-time user guidance
+- [ ] **Quest Type Configuration:**
+  - [ ] Create `config/questTypes.js`:
+    - Define concurrency limits per quest type
+    - Define XP multipliers
+    - Define narrative weights
+    - Define examples for each type
 
-**Tutorial & Onboarding:**
-- [ ] Tutorial quest flow:
-  - "Elder Thorne's Test" auto-starts for new characters
-  - Guided tooltips explaining UI elements
-  - Progressive disclosure (show features as needed)
-  - Celebration after first quest completion
-- [ ] Onboarding improvements:
-  - Better goal setup guidance
-  - Class selection with clearer stat implications
-  - Quick start guide / "How to Play" section
-- [ ] Help documentation:
-  - FAQ section
-  - Explanation of stats and progression
-  - How goals map to quests
-  - Troubleshooting common issues
+- [ ] **Dynamic Quest Service:**
+  - [ ] Create `services/dynamicQuestService.js`:
+    - [ ] `generateQuestPool(characterId)` - Generates 5-15 available quests
+    - [ ] `generateMainStoryQuests()` - 1-2 quests
+    - [ ] `generateCharacterArcQuests()` - 2-3 quests based on stat focus
+    - [ ] `generateWorldEventQuests()` - 1-2 time-limited quests
+    - [ ] `generateSideStoryQuests()` - 3-5 optional narrative
+    - [ ] `generateExplorationQuests()` - 2-3 low-pressure lore
+    - [ ] `generateConsequenceQuests()` - Based on past decisions
+    - [ ] `filterAndPrioritize()` - Ensures quest limits respected
 
-**Integration Testing:**
-- [ ] End-to-end user journeys:
-  - New user → Character creation → Goal setup → Tutorial quest → First generated quest → Quest completion → Reward → New quest
-  - Test with multiple character types (Fighter, Mage, Rogue)
-  - Test with different goal patterns (all physical, all mental, balanced)
-  - Test edge cases (skipped days, stat imbalances, failed quests)
-- [ ] Multi-session testing:
-  - Simulate 4+ weeks of usage per character
-  - Verify narrative coherence maintained
-  - Check memory system working (no forgotten events)
-  - Validate world state consistency
-- [ ] Load testing:
-  - Simulate 10 concurrent users
-  - Monitor performance degradation
-  - Check cache effectiveness under load
-  - Verify database connection pooling
+  - [ ] `analyzeGoalPriorities(characterId)` - What stats are they training?
+    - Returns ranked stats by activity
+    - Identifies neglected stats
+    - Analyzes training frequency
+    - Determines commitment level
 
-**Bug Fixes & Edge Cases:**
-- [ ] Handle failed quests gracefully:
-  - Soft expiration after 7 days
-  - Story Coordinator offers "move on" narrative
-  - No harsh penalties, compassionate messaging
-- [ ] Handle long user absence:
-  - Welcome back message
-  - Brief summary of where they left off
-  - Option to "catch up" or "start fresh chapter"
-- [ ] Handle stat imbalances:
-  - Corrective quests trigger at >5 point gap
-  - Gentle encouragement toward balance
-  - Don't block progression entirely
-- [ ] Handle API failures:
-  - Retry logic with exponential backoff
-  - Graceful degradation (show cached content)
-  - Clear error messages to user
-  - Fallback quest generation if needed
+**Phase 2: Player Choice & Agency Systems (Days 3-4)**
 
-**Documentation:**
-- [ ] Developer documentation:
-  - Setup instructions (README)
-  - Architecture overview
-  - Agent system documentation
-  - Database schema documentation
-  - API endpoint documentation
-- [ ] Deployment guide:
-  - Environment variables needed
-  - Database migration process
-  - Redis setup
-  - Claude API key configuration
+- [ ] **Choice System Backend:**
+  - [ ] Enhance Quest Creator agent to include choice points:
+    - Generate quests with 1-3 meaningful choices
+    - Each choice has: label, description, mechanical requirement, narrative consequence, unlocks_quests, locks_quests, affects_relationship
+    - Choices reflect different stat builds
+    - No "correct" choice - all paths valid and interesting
+
+  - [ ] Create choice handling endpoints:
+    - [ ] `POST /api/quests/:id/choices/:choiceId/make` - Record player choice
+    - [ ] `GET /api/characters/:id/choices` - Get choice history
+
+  - [ ] Choice consequence processing:
+    - [ ] Apply relationship changes
+    - [ ] Update story branch status
+    - [ ] Unlock/lock future quests
+    - [ ] Record in character_choices table
+    - [ ] Update world state
+
+- [ ] **Choice System Frontend:**
+  - [ ] Create `components/QuestChoice.jsx`:
+    - Display choice points during quest
+    - Show consequence preview on hover
+    - Show stat requirements
+    - Confirmation modal for irreversible choices
+    - Visual indicators for locked choices
+
+  - [ ] Update QuestCard to display choice points:
+    - Show when quest requires decision
+    - Highlight urgent choices
+    - Show consequences of past choices
+
+**Phase 3: MMO-Style Quest Log UI (Days 4-5)**
+
+- [ ] **Quest Log Page:**
+  - [ ] Create `pages/QuestLog.jsx`:
+    - [ ] Tab system: Available, Active (X/10), Completed
+    - [ ] Quest sections organized by type:
+      - Main Story (prominent, ⚔️ icon)
+      - World Events (time-sensitive, 🔥 icon, show timer)
+      - Your Path / Character Arcs (personal, 🌟 icon)
+      - Side Stories (optional, 📖 icon)
+      - Exploration (collapsible, 🗺️ icon)
+    - [ ] Each section shows quest count
+    - [ ] Collapsible sections for organization
+
+  - [ ] Quest card components:
+    - [ ] `QuestSection` - Organizes quests by type with priority colors
+    - [ ] Enhanced `QuestCard` for available quests:
+      - Shows timer for world events
+      - Shows "Important" badge for high narrative weight
+      - Shows objective preview (first 2)
+      - Shows prerequisites if not met
+      - Shows rewards preview
+      - Shows chain indicator if part of series
+      - Accept/Details buttons
+    - [ ] `ActiveQuestCard` for active quests:
+      - Full objective tracking with checkboxes
+      - Progress percentage
+      - Narrative scene (expandable)
+      - Choice points displayed
+      - Complete/Abandon buttons
+    - [ ] `CompletedQuestCard`:
+      - Shows choices made
+      - Shows consequences
+      - Collapsed by default
+
+- [ ] **Dashboard Integration:**
+  - [ ] Update Dashboard to show quest summary:
+    - Up to 3 active quests displayed
+    - "View All" button to Quest Log
+    - Quest completion celebrations
+    - New quest notifications
+
+**Phase 4: Goal-Quest Integration (Days 5-6)**
+
+- [ ] **Smart Goal Mapping Service:**
+  - [ ] Create `services/goalQuestMapper.js`:
+    - [ ] `mapGoalsToQuests(characterId)` - Analyzes user's preset goals
+    - [ ] `generateAlignedQuests()` - Creates quests using existing goals
+    - [ ] `createMultiStageObjectives()` - Break goals into stages (1x, 3x, full weekly)
+    - [ ] `groupGoalsByStat()` - Organize by stat focus
+
+  - [ ] Enhanced quest objectives:
+    - Link directly to user's preset goals
+    - Multi-stage rewards (small wins for partial completion)
+    - Narrative wrappers around existing habits
+    - Balance quests for multi-stat training
+
+- [ ] **Quest Progression Service:**
+  - [ ] Create `services/questProgressionService.js`:
+    - [ ] `onGoalCompleted()` - Check ALL active quests for progress
+    - [ ] `updateQuestProgress()` - Update specific quest
+    - [ ] `isStageCompleted()` - Check if stage done
+    - [ ] `awardStageReward()` - Give partial rewards for stages
+    - [ ] `isQuestCompleted()` - Check if full quest done
+
+  - [ ] Goal completion integration:
+    - Update `POST /api/goals/:id/complete` to:
+      - Find all affected quests
+      - Update progress for each
+      - Award stage rewards if applicable
+      - Return quest_updates array
+    - Return: goal_completion + quest_updates
+
+**Phase 5: World Events & Dynamic Story (Days 6-7)**
+
+- [ ] **World Event System:**
+  - [ ] Create `services/worldEventService.js`:
+    - [ ] `generateWorldEvent()` - Creates time-limited event affecting all players
+    - [ ] `spawnEventQuestsForAllPlayers()` - Creates event quests
+    - [ ] `initializeEventTracking()` - Tracks participation
+    - [ ] `evaluateEventOutcome()` - Determines success based on collective effort
+    - [ ] `spawnConsequenceQuests()` - Creates follow-up quests based on outcome
+
+  - [ ] World event triggers:
+    - Manual admin trigger
+    - Scheduled events (weekly)
+    - Dynamic triggers based on aggregate player progress
+
+  - [ ] Event impact system:
+    - Track participation rate
+    - Adjust world state based on success
+    - Update global narrative based on outcome
+    - Spawn consequence quests for all players
+
+- [ ] **Integration Testing:**
+  - [ ] Test quest pool generation:
+    - Generate pools for 5 different character profiles
+    - Verify no two characters get identical pools
+    - Verify stat focus affects quest selection
+    - Verify goal priorities reflected in quests
+
+  - [ ] Test choice system:
+    - Make opposite choices with test characters
+    - Verify story diverges appropriately
+    - Verify content unlocks/locks correctly
+    - Verify NPC relationships update
+
+  - [ ] Test quest progression:
+    - Complete quests in different orders
+    - Verify coherence maintained
+    - Verify quest chains work correctly
+    - Verify stage rewards awarded properly
+
+  - [ ] Test world events:
+    - Simulate event with 10 test characters
+    - Verify participation tracked
+    - Verify outcome affects world state
+    - Verify consequence quests spawned
 
 ### Deliverables
-- Polished, responsive UI across all screens
-- Performance optimized (API <500ms P95, DB queries <50ms)
-- Cost optimized (<$0.10/user/day)
-- Monitoring dashboard showing all key metrics
-- Tutorial flow completed and tested
-- All edge cases handled gracefully
-- Documentation complete
+- Database schema enhanced with quest types, chains, branches, world events, and choice tracking
+- Quest type system with concurrency limits and XP multipliers
+- Dynamic quest generation creating 5-15 quests per character pool
+- Player choice system with consequence tracking and story branching
+- MMO-style Quest Log UI with tab organization and quest type sections
+- Goal-quest integration mapping user habits to narrative objectives
+- Multi-stage objective system with partial rewards
+- World event system with time-limited quests and collective impact
+- Quest progression service updating all active quests on goal completion
+- Enhanced QuestCard components showing choices, timers, and chains
+- Character choice history and story branch tracking
+- Integration tests verifying quest pool diversity and choice divergence
 
 ### Success Criteria
-✅ **Cache hit rate ≥50% combined**
-✅ **Cost per active user <$0.10/day**
-✅ **Agent failure rate <1%**
-✅ P95 API latency <500ms
-✅ All end-to-end user journeys pass
-✅ 4+ week simulation maintains coherence
-✅ Tutorial completable in <10 minutes
-✅ Zero critical bugs in backlog
+✅ **Quest pool generation creates 5-15 unique quests per character**
+✅ **Quest types properly distributed** (1-2 main, 2-3 arcs, 1-2 events, 3-5 side, 2-3 exploration)
+✅ **Player choices affect narrative** - opposite choices lead to different content unlocks
+✅ **Goal-quest integration working** - completing goals updates all relevant quest progress
+✅ **Multi-stage rewards functional** - partial quest completion awards stage rewards
+✅ **Quest Log UI organized by type** - all 5 quest sections display correctly
+✅ **World events spawn correctly** - time-limited quests generated with timers
+✅ **Story branches tracked** - character_choices and story_branches tables populated
+✅ **No two characters get identical quest pools** - verified with 5 test characters
+✅ **Concurrency limits enforced** - can't have >10 active quests total
+✅ **Integration tests pass** - quest pool diversity, choice divergence, progression
+✅ **Lorekeeper validation maintained** - still ≥85% pass rate for dynamic quests
+✅ **Cost remains <$0.10/user/day** - despite increased quest generation
+✅ **Agent failure rate <1%** - dynamic generation stable
 
 ### Sprint Gate
-**Must Pass:** All three metrics (cache 50%+, agents <1% failure, cost <$0.10), end-to-end tests passing, 4-week coherence maintained
+**Must Pass:** Dynamic quest system generating diverse quest pools (5-15 per character), player choice system functional with story branching, goal-quest integration working, quest log UI complete, integration tests passing, Lorekeeper validation ≥85%, cost <$0.10/user/day, agent failure <1%
 
-**⚠️ HARD GATE:** Cannot proceed to Sprint 7 (beta) without meeting all performance and cost targets
+**⚠️ HARD GATE:** Cannot proceed to Sprint 7 (beta) without completing the Dynamic Narrative System transformation. The linear quest system is insufficient for beta launch.
 
 ---
 
@@ -813,6 +880,12 @@ Deploy to small group of external users, collect real-world feedback, identify i
     - UI/UX friction points
     - Bugs encountered
     - Overall satisfaction
+    - **Dynamic Narrative System specific:**
+      - Do you have enough quest variety? Too many quests?
+      - Do the quests feel connected to your actual wellness goals?
+      - Do your choices feel meaningful and impactful?
+      - How do you feel about world events?
+      - Is the Quest Log easy to navigate and understand?
 - [ ] Discord/Slack channel for beta testers:
   - Discussion and community
   - Real-time feedback
@@ -831,12 +904,21 @@ Deploy to small group of external users, collect real-world feedback, identify i
   - Average session length
   - Goals completed per active user
   - Quests completed per active user
+  - Average active quests per user (target: 3-8)
+  - Choice engagement rate (% of choice points where player makes active decision)
 - [ ] **Quality:**
   - User-reported consistency issues (target: <10%)
   - User-reported bugs
-  - Quest acceptance rate (% of offered quests accepted)
-  - Quest abandonment rate
+  - Quest acceptance rate by type (main story vs side story vs world events)
+  - Quest abandonment rate (target: <20%)
+  - Choice diversity (% of players making different choices on same quest)
   - Satisfaction ratings
+  - Story branch diversity (how many different narrative paths active)
+- [ ] **Dynamic Narrative System Specific:**
+  - Quest pool diversity score (similarity between different players' pools)
+  - Player feedback on choice meaningfulness (survey question)
+  - World event participation rate (target: 60%+)
+  - Goal-quest alignment satisfaction (do quests feel connected to their habits?)
 - [ ] **Technical:**
   - Cache hit rates in production
   - API costs per active user (target: <$0.10/day)
@@ -871,10 +953,20 @@ Deploy to small group of external users, collect real-world feedback, identify i
   - <10% user-reported consistency issues
   - 75%+ users report story feels coherent
   - Manual review of 5 long-term users shows coherence
+  - 70%+ users report choices feel meaningful
+  - Story branches demonstrate clear divergence
 - [ ] Engagement:
   - 40%+ daily active return rate
   - 50%+ goal completion improvement vs. user's baseline
   - 70%+ quest completion rate (accepted quests finished)
+  - 60%+ world event participation rate
+  - 3-8 average active quests per user maintained
+- [ ] Dynamic Narrative System:
+  - Quest pools demonstrate diversity (no two players get identical pools)
+  - Choice diversity >40% (players making different choices)
+  - 70%+ users feel quests align with their wellness goals
+  - 65%+ quest acceptance rate (users find quests appealing)
+  - <20% quest abandonment rate
 - [ ] Technical:
   - 50%+ cache hit rate maintained
   - <$0.10 per active user per day costs
@@ -884,6 +976,7 @@ Deploy to small group of external users, collect real-world feedback, identify i
   - 4+ average rating (out of 5)
   - 70%+ would recommend to a friend
   - 80%+ say narrative helped motivation
+  - 75%+ satisfied with quest variety and choice system
 
 **Launch Decision:**
 - [ ] Review all success criteria

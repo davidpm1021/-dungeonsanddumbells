@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CharacterCreation from './pages/CharacterCreation';
 import GoalSetup from './pages/GoalSetup';
+import QuestLog from './pages/QuestLog';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -36,6 +37,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quests"
+          element={
+            <ProtectedRoute>
+              <QuestLog />
             </ProtectedRoute>
           }
         />

@@ -7,6 +7,19 @@ const STAT_INFO = {
   cha: { name: 'Charisma', description: 'Social wellness' },
 };
 
+const STAT_COLORS = {
+  str: '#ef4444', // red
+  dex: '#10b981', // green
+  con: '#f59e0b', // amber
+  int: '#3b82f6', // blue
+  wis: '#8b5cf6', // purple
+  cha: '#ec4899', // pink
+};
+
+function getStatColor(stat) {
+  return STAT_COLORS[stat] || '#6b7280';
+}
+
 export default function StatCard({ stat, value, xp, xpNeeded }) {
   const info = STAT_INFO[stat];
   const progress = xpNeeded > 0 ? (xp / xpNeeded) * 100 : 0;
@@ -23,18 +36,24 @@ export default function StatCard({ stat, value, xp, xpNeeded }) {
         </div>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-gray-600">
           <span>XP Progress</span>
-          <span className="font-medium">
+          <span className="font-bold text-sm">
             {xp} / {xpNeeded}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
           <div
-            className={`bg-${stat} h-2 rounded-full transition-all duration-300`}
-            style={{ width: `${Math.min(progress, 100)}%` }}
+            className={`h-3 rounded-full transition-all duration-500 ease-out`}
+            style={{
+              width: `${Math.max(Math.min(progress, 100), 2)}%`,
+              backgroundColor: getStatColor(stat)
+            }}
           />
+        </div>
+        <div className="text-xs text-gray-500 text-right">
+          {progress.toFixed(1)}% complete
         </div>
       </div>
     </div>

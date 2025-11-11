@@ -9,7 +9,9 @@ Keep document creation to a minimum and file structure clean.
 
 **Dumbbells & Dragons** is an AI-driven RPG that gamifies wellness goals into persistent narrative experiences. Users complete real-world health goals (exercise, meditation, reading) which translates into fantasy character progression. The system maintains story coherence across weeks to months using a multi-agent AI architecture with explicit memory systems.
 
-**Current Status:** Phase 4-5 Complete! Multi-agent system operational with Redis caching and monitoring dashboard
+**Current Status:** Phase 4-5 Complete! Multi-agent system operational - NOW PIVOTING to Dynamic Narrative System (PRD Addendum)
+
+**⚠️ CRITICAL SHIFT:** Product direction has evolved from linear quest system to MMO-style dynamic narrative (see PRD Addendum.md). This changes the scope significantly but leverages the solid foundation already built.
 
 **Completed:**
 - ✅ Backend project structure initialized
@@ -105,14 +107,39 @@ Keep document creation to a minimum and file structure clean.
   - Server verified operational with Redis + PostgreSQL
   - Monitoring dashboard accessible and functional
 
-**Next Steps:**
-- **User Action Required:** Install pgvector extension (see backend/PGVECTOR_INSTALL.md)
-- After pgvector: Run migration 004, add OPENAI_API_KEY to .env
-- Frontend UI: Build character creation, goal setup, and dashboard pages
+- ✅ **Basic Quest Objective System (Sprint 6 Foundation)**
+  - QuestCard component with objective display and tracking
+  - Individual objective completion with rewards (+XP, +stat)
+  - Frontend handlers for objective clicks
+  - Backend endpoint for completing objectives
+  - Quest completion blocked until all objectives done
+
+**🔄 NEW DIRECTION (PRD Addendum - Dynamic Narrative System):**
+
+**Philosophy Shift:** From "linear story with habit logging" to "dynamic MMO-style narrative that adapts to player choices and ongoing engagement"
+
+**What We're Building Now:**
+1. **Multiple Concurrent Quests (5-15 active)** - Not just 1-3
+2. **Quest Type System** - main_story, side_story, world_event, character_arc, corrective, exploration
+3. **Player Agency** - Meaningful choices that affect story, unlock/lock content, change NPC relationships
+4. **Dynamic Quest Generation** - Based on stat focus, goal priorities, recent choices, world events
+5. **Quest Chains & Webs** - Quests unlock other quests, create branching narratives
+6. **World Events** - Time-limited events affecting all players, collective impact
+7. **MMO-Style Quest Log** - Organized by type, clear progression, accept/abandon mechanics
+
+**Next Steps (7-Day Pre-Beta Sprint - See SPRINTS.md Sprint 6):**
+- **Days 1-3:** Database enhancements (quest types, chains, branches, world events, choices)
+- **Days 3-4:** Player choice system (choice points, consequences, tracking)
+- **Days 4-5:** MMO-style Quest Log UI (tabs, filtering, organization)
+- **Days 5-6:** Goal-quest integration (quests use existing goals, multi-stage objectives)
+- **Days 6-7:** World events system, integration testing
+
+**After Implementation:**
+- Install pgvector extension (see backend/PGVECTOR_INSTALL.md)
+- Run migration 004, add OPENAI_API_KEY to .env
 - Comprehensive integration testing (20+ session narratives)
-- Measure Lorekeeper validation pass rate target (85%+)
-- Optimize latency (current P95: 12.6s, target: <3s)
-- Phase 7: Closed beta with 10-20 test users
+- Measure engagement: 40%+ daily return rate, multiple quest completion
+- Beta testing with revised success criteria (player agency, choice impact)
 
 ## Key Architecture Decisions (Research-Informed)
 

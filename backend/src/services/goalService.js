@@ -95,7 +95,7 @@ class GoalService {
 
     // Check if already completed today
     const completedToday = await this.isCompletedToday(goalId);
-    if (completedToday && goal.goal_type !== 'quantitative') {
+    if (completedToday && goal.goalType !== 'quantitative') {
       throw new Error('This goal has already been completed today');
     }
 
@@ -119,23 +119,23 @@ class GoalService {
 
     // Award XP to character
     const updatedCharacter = await characterService.awardXP(
-      goal.character_id,
-      goal.stat_mapping,
+      goal.characterId,
+      goal.statMapping,
       xpAwarded
     );
 
     // Log narrative event to memory system
     const eventDescription = this.generateEventDescription(goal, value, notes, streakBonus, streak + 1);
 
-    await memoryManager.storeInWorkingMemory(goal.character_id, {
+    await memoryManager.storeInWorkingMemory(goal.characterId, {
       eventType: 'goal_completion',
       description: eventDescription,
       participants: [],
-      statChanges: { [goal.stat_mapping]: xpAwarded },
+      statChanges: { [goal.statMapping]: xpAwarded },
       goalId: goalId,
       context: {
         goalName: goal.name,
-        goalType: goal.goal_type,
+        goalType: goal.goalType,
         value: value,
         notes: notes,
         streakBonus: streakBonus,
@@ -146,15 +146,15 @@ class GoalService {
 
     // Update narrative summary with progress
     const summaryUpdate = streakBonus
-      ? `You maintained a ${streak + 1}-day streak on "${goal.name}", earning bonus XP! Your ${goal.stat_mapping} grows stronger.`
-      : `You completed "${goal.name}", growing your ${goal.stat_mapping}.`;
+      ? `You maintained a ${streak + 1}-day streak on "${goal.name}", earning bonus XP! Your ${goal.statMapping} grows stronger.`
+      : `You completed "${goal.name}", growing your ${goal.statMapping}.`;
 
-    await memoryManager.updateNarrativeSummary(goal.character_id, summaryUpdate);
+    await memoryManager.updateNarrativeSummary(goal.characterId, summaryUpdate);
 
     return {
       completion: transformKeysToCamel(completion.rows[0]),
       xpAwarded,
-      statMapping: goal.stat_mapping,
+      statMapping: goal.statMapping,
       character: updatedCharacter,
       streakBonus: streakBonus
     };
@@ -175,11 +175,11 @@ class GoalService {
 
     let description = `You completed "${goal.name}"`;
 
-    if (goal.goal_type === 'quantitative' && value) {
-      description += ` (${value}${goal.target_value ? `/${goal.target_value}` : ''})`;
+    if (goal.goalType === 'quantitative' && value) {
+      description += ` (${value}${goal.targetValue ? `/${goal.targetValue}` : ''})`;
     }
 
-    description += `, strengthening your ${statNames[goal.stat_mapping] || goal.stat_mapping.toLowerCase()}.`;
+    description += `, strengthening your ${statNames[goal.statMapping] || goal.statMapping.toLowerCase()}.`;
 
     if (streakBonus) {
       description += ` Your dedication is rewarded - ${currentStreak} days of consistent effort!`;
