@@ -11,13 +11,17 @@ class AuthController {
 
       const user = await authService.register(email, username, password);
 
+      // Auto-login: Generate token after successful registration
+      const token = authService.generateToken(user.id, username, email);
+
       res.status(201).json({
         message: 'User created successfully',
+        token,
         user: {
           id: user.id,
           email: user.email,
           username: user.username,
-          createdAt: user.created_at
+          createdAt: user.createdAt
         }
       });
     } catch (err) {

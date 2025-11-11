@@ -7,6 +7,17 @@ const SALT_ROUNDS = 10;
 
 class AuthService {
   /**
+   * Generate JWT token for a user
+   */
+  generateToken(userId, username, email) {
+    return jwt.sign(
+      { userId, username, email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+  }
+
+  /**
    * Register a new user
    */
   async register(email, username, password) {
@@ -82,16 +93,8 @@ class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    // Generate JWT
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        username: user.username,
-        email: user.email
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Generate JWT using helper method
+    const token = this.generateToken(user.id, user.username, user.email);
 
     return {
       token,

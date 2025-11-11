@@ -87,12 +87,12 @@ test.describe('Dumbbells & Dragons E2E Tests', () => {
     await expect(page.getByText(/Level 1/)).toBeVisible();
 
     // 13. Verify character stats are displayed
-    await expect(page.getByText('Strength')).toBeVisible();
-    await expect(page.getByText('Dexterity')).toBeVisible();
-    await expect(page.getByText('Constitution')).toBeVisible();
-    await expect(page.getByText('Intelligence')).toBeVisible();
-    await expect(page.getByText('Wisdom')).toBeVisible();
-    await expect(page.getByText('Charisma')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Strength' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dexterity' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Constitution' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Intelligence' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Wisdom' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Charisma' })).toBeVisible();
 
     // 14. Verify goals are displayed
     await expect(page.getByText('30-minute workout')).toBeVisible();
@@ -116,7 +116,7 @@ test.describe('Dumbbells & Dragons E2E Tests', () => {
 
     // 19. Verify XP progress updated (check that at least one stat has XP)
     // The page should show XP progress for STR and DEX now
-    await expect(page.getByText(/\d+\s*\/\s*\d+/)).toBeVisible();
+    await expect(page.getByText(/\d+\s*\/\s*\d+/).first()).toBeVisible();
 
     // 20. Test logout
     await page.getByRole('button', { name: /Logout/i }).click();

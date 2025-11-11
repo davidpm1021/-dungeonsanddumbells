@@ -201,16 +201,16 @@ ALTER TABLE quests
 -- PART 8: Update Existing Quest Templates to Use New Quest Types
 -- ============================================================================
 
--- Update the tutorial quest to use 'main_story' instead of 'main'
-UPDATE quest_templates
-SET quest_type = 'main_story'
-WHERE quest_type = 'main' AND template_name = 'tutorial_elder_thorne';
-
--- Drop and recreate CHECK constraint on quest_templates to match quests table
+-- Drop and recreate CHECK constraint on quest_templates FIRST before updating data
 ALTER TABLE quest_templates DROP CONSTRAINT IF EXISTS quest_templates_quest_type_check;
 ALTER TABLE quest_templates
   ADD CONSTRAINT quest_templates_quest_type_check
   CHECK (quest_type IN ('main_story', 'side_story', 'world_event', 'character_arc', 'corrective', 'exploration', 'main', 'side'));
+
+-- Update the tutorial quest to use 'main_story' instead of 'main'
+UPDATE quest_templates
+SET quest_type = 'main_story'
+WHERE quest_type = 'main' AND template_name = 'tutorial_elder_thorne';
 
 -- ============================================================================
 -- Comments for Documentation

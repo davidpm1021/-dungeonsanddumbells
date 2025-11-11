@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Test output
+coverage/
+.nyc_output/
+playwright-test-output.log
+
+# Debug files
+nul
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Frontend specific
+frontend/.env
+frontend/.env.local
+frontend/dist/
+frontend/build/
+
+# Backend specific
+backend/.env
+backend/.env.local
+
+# Redis dump
+dump.rdb
