@@ -114,32 +114,72 @@ Keep document creation to a minimum and file structure clean.
   - Backend endpoint for completing objectives
   - Quest completion blocked until all objectives done
 
-**🔄 NEW DIRECTION (PRD Addendum - Dynamic Narrative System):**
+**🚨 CURRENT STATUS: Sprint 5.5 - Emergency Narrative System Fixes**
 
-**Philosophy Shift:** From "linear story with habit logging" to "dynamic MMO-style narrative that adapts to player choices and ongoing engagement"
+**CRITICAL ISSUES DISCOVERED:**
+- ❌ Database errors on objective completion
+- ❌ No UI for daily goal/training ritual completion
+- ❌ **Narrative quality FAILURE** - Every quest is "The Awakening..." (repetitive, boring)
+- ❌ Story Coordinator stuck on 'introduction' theme - no progression
+- ❌ Lorekeeper validation failing (15-75% scores, target is 85%+)
+- ❌ Memory/RAG systems not being used - no narrative context
+- ❌ Quest Creator temperature too high (0.8, should be 0.3-0.5 for consistency)
 
-**What We're Building Now:**
-1. **Multiple Concurrent Quests (5-15 active)** - Not just 1-3
-2. **Quest Type System** - main_story, side_story, world_event, character_arc, corrective, exploration
-3. **Player Agency** - Meaningful choices that affect story, unlock/lock content, change NPC relationships
-4. **Dynamic Quest Generation** - Based on stat focus, goal priorities, recent choices, world events
-5. **Quest Chains & Webs** - Quests unlock other quests, create branching narratives
-6. **World Events** - Time-limited events affecting all players, collective impact
-7. **MMO-Style Quest Log** - Organized by type, clear progression, accept/abandon mechanics
+**ROOT CAUSE:** The research-informed multi-agent architecture from PRD.md and Research.md is not properly implemented:
+1. Story Coordinator not tracking narrative progression (no qualities/story beats)
+2. Quest Creator not using RAG context or narrative summary
+3. Lorekeeper not enforcing World Bible rules strictly enough
+4. Memory Manager/narrative summary system not in the loop
 
-**Next Steps (7-Day Pre-Beta Sprint - See SPRINTS.md Sprint 6):**
-- **Days 1-3:** Database enhancements (quest types, chains, branches, world events, choices)
-- **Days 3-4:** Player choice system (choice points, consequences, tracking)
-- **Days 4-5:** MMO-style Quest Log UI (tabs, filtering, organization)
-- **Days 5-6:** Goal-quest integration (quests use existing goals, multi-stage objectives)
-- **Days 6-7:** World events system, integration testing
+**EMERGENCY SPRINT PLAN (2-3 Days - See SPRINTS.md Sprint 5.5):**
 
-**After Implementation:**
-- Install pgvector extension (see backend/PGVECTOR_INSTALL.md)
-- Run migration 004, add OPENAI_API_KEY to .env
-- Comprehensive integration testing (20+ session narratives)
-- Measure engagement: 40%+ daily return rate, multiple quest completion
-- Beta testing with revised success criteria (player agency, choice impact)
+**Phase 1: Critical Bugs (Day 1 - IMMEDIATE)**
+- Fix database schema issues
+- Fix objective completion endpoint
+- Add Daily Goal Completion UI
+- Fix JSON parsing
+- Add error handling
+
+**Phase 2: Narrative System Core Fixes (Days 1-2 - HIGH PRIORITY)**
+- Implement narrative progression tracking (character qualities for story beats)
+- Fix Story Coordinator to use dynamic themes based on progression
+- Overhaul Quest Creator:
+  - Lower temperature from 0.8 to 0.5 (per Research.md)
+  - Retrieve top 5 past events via RAG
+  - Include narrative summary in prompts
+  - Add quest variety templates (investigation, rescue, escort, combat, social, exploration)
+  - Enforce title variety (no more "Awakening" spam)
+- Strengthen Lorekeeper:
+  - Embed World Bible at BOTH start and end of prompt (serial position effect)
+  - Add explicit good/bad examples
+  - Raise threshold to 85%
+- Implement narrative summary system (rolling 500-word summary)
+- Activate RAG for context retrieval
+
+**Phase 3: User Experience (Day 2-3 - MEDIUM PRIORITY)**
+- Dashboard enhancements (training rituals section with completion buttons)
+- Quest card improvements (fix objective handlers, show rewards)
+- Error handling & feedback
+
+**SUCCESS CRITERIA FOR SPRINT 5.5:**
+- ✅ Database errors eliminated
+- ✅ Goal completion UI functional
+- ✅ No repetitive quest titles (last 10 quests have unique titles)
+- ✅ Story Coordinator uses ≥5 different themes
+- ✅ Lorekeeper validation ≥85%
+- ✅ Narrative summary maintained for all characters
+- ✅ RAG retrieving context for quest generation
+- ✅ Temperature lowered to 0.5
+- ✅ Full user loop working (register → complete quest → get reward)
+- ✅ E2E test still passing
+
+**⚠️ HARD GATE:** Cannot proceed to Sprint 6 (Dynamic Narrative System) without fixing these fundamental narrative coherence issues first.
+
+**After Sprint 5.5 Completion:**
+- THEN proceed to Sprint 6: Dynamic Narrative System (MMO-style quest log, player agency, quest chains)
+- THEN install pgvector for semantic embeddings
+- THEN comprehensive integration testing (20+ session narratives)
+- THEN beta testing with revised success criteria
 
 ## Key Architecture Decisions (Research-Informed)
 

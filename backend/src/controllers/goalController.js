@@ -1,5 +1,6 @@
 const goalService = require('../services/goalService');
 const characterService = require('../services/characterService');
+const questProgressionService = require('../services/questProgressionService');
 
 class GoalController {
   /**
@@ -128,6 +129,31 @@ class GoalController {
       const streak = await goalService.getGoalStreak(parseInt(id));
       const completedToday = await goalService.isCompletedToday(parseInt(id));
 
+      // GOAL-QUEST INTEGRATION: Check for quest progression
+      let questUpdates = [];
+      try {
+        const characterId = result.character.id;
+        const questProgression = await questProgressionService.onGoalCompleted(
+          characterId,
+          parseInt(id),
+          {
+            value: value || 1,
+            xp_gained: result.xpAwarded,
+            stat: result.statMapping,
+            notes
+          }
+        );
+
+        questUpdates = questProgression.quest_updates || [];
+
+        if (questUpdates.length > 0) {
+          console.log(`[GoalController] Goal completion updated ${questUpdates.length} quest(s)`);
+        }
+      } catch (questErr) {
+        // Don't fail the entire goal completion if quest progression fails
+        console.error('[GoalController] Quest progression error (non-fatal):', questErr.message);
+      }
+
       res.json({
         success: true,
         message: 'Goal completed successfully!',
@@ -140,7 +166,9 @@ class GoalController {
         xpAwarded: result.xpAwarded,
         statMapping: result.statMapping,
         character: result.character,
-        streakBonus: result.streakBonus
+        streakBonus: result.streakBonus,
+        // Include quest updates in response
+        questUpdates: questUpdates
       });
     } catch (err) {
       if (err.message.includes('already been completed')) {

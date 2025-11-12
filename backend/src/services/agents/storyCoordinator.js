@@ -25,13 +25,21 @@ class StoryCoordinator {
    */
   async evaluateQuestNeed(characterId, character, activeQuestCount) {
     try {
+      // Fetch character qualities for progression tracking
+      const qualities = await this.getCharacterQualities(characterId);
+
+      // Fetch quest history for theme variety
+      const completedQuestCount = await this.getCompletedQuestCount(characterId);
+
       // Build prompt with full context
       const { system, messages } = await promptBuilder.build({
         agentType: 'story_coordinator',
         characterId,
         character,
         context: {
-          activeQuestCount
+          activeQuestCount,
+          characterQualities: qualities,
+          completedQuestCount
         },
         includeWorldBible: true,
         includeMemory: true
@@ -230,6 +238,54 @@ class StoryCoordinator {
       },
       gap: highest[1] - lowest[1]
     };
+  }
+
+  /**
+   * Get character qualities for progression tracking
+   */
+  async getCharacterQualities(characterId) {
+    const pool = require('../../config/database');
+
+    try {
+      const result = await pool.query(
+        `SELECT quality_name, quality_value
+         FROM character_qualities
+         WHERE character_id = $1`,
+        [characterId]
+      );
+
+      // Convert to object for easy lookup
+      const qualities = {};
+      result.rows.forEach(row => {
+        qualities[row.quality_name] = row.quality_value;
+      });
+
+      return qualities;
+    } catch (error) {
+      console.error('[StoryCoordinator] Error fetching character qualities:', error.message);
+      return {}; // Return empty object on error
+    }
+  }
+
+  /**
+   * Get completed quest count
+   */
+  async getCompletedQuestCount(characterId) {
+    const pool = require('../../config/database');
+
+    try {
+      const result = await pool.query(
+        `SELECT COUNT(*) as count
+         FROM quests
+         WHERE character_id = $1 AND status = 'completed'`,
+        [characterId]
+      );
+
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      console.error('[StoryCoordinator] Error fetching completed quest count:', error.message);
+      return 0;
+    }
   }
 }
 

@@ -59,7 +59,14 @@ class QuestService {
         difficulty: decision.suggestedDifficulty
       });
 
-      // Step 2: Quest Creator generates the quest
+      // Get user's actual goals for quest objectives
+      const userGoals = await this.getUserGoals(characterId);
+      console.log(`[QuestService] Found ${userGoals.length} user goals to incorporate`);
+
+      // Enhance decision with user goals
+      decision.userGoals = userGoals;
+
+      // Step 2: Quest Creator generates the quest with user goals
       const generatedQuest = await questCreator.generateQuest(decision, character, characterId);
 
       console.log('[QuestService] Quest generated:', generatedQuest.title);
@@ -119,15 +126,16 @@ class QuestService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      // Insert quest
+      // Insert quest (NARRATIVE-FIRST!)
       const questResult = await client.query(
         `INSERT INTO quests (
           character_id, title, description, quest_type, difficulty,
           npc_involved, theme, prerequisites, effects,
           estimated_duration, gold_reward, item_reward,
           generated_by_ai, validation_score, generation_prompt,
-          expires_at, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          expires_at, status,
+          opening_scene, world_context, npc_dialogue
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         RETURNING *`,
         [
           characterId,
@@ -135,7 +143,7 @@ class QuestService {
           quest.description,
           decision.questType || 'side',
           decision.suggestedDifficulty || 'medium',
-          quest.npcInvolved || null,
+          quest.npcDialogue?.npcName || quest.npcInvolved || null,
           decision.suggestedTheme || null,
           JSON.stringify(quest.prerequisites || {}),
           JSON.stringify(quest.effects || {}),
@@ -146,27 +154,34 @@ class QuestService {
           validation.score,
           quest.metadata?.generationPrompt || null,
           expiresAt,
-          'available'
+          'available',
+          quest.openingScene || null, // NARRATIVE-FIRST
+          quest.worldContext || null, // Story context
+          JSON.stringify(quest.npcDialogue || {}) // NPC dialogue
         ]
       );
 
       const storedQuest = questResult.rows[0];
 
-      // Insert objectives
+      // Insert objectives (with narrative descriptions)
       for (let i = 0; i < quest.objectives.length; i++) {
         const obj = quest.objectives[i];
         await client.query(
           `INSERT INTO quest_objectives (
             quest_id, description, order_index, goal_mapping,
-            stat_reward, xp_reward
-          ) VALUES ($1, $2, $3, $4, $5, $6)`,
+            stat_reward, xp_reward,
+            narrative_description, mechanical_description, story_beat
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             storedQuest.id,
-            obj.description,
+            obj.narrativeDescription || obj.description, // Fallback to old format
             i,
             obj.goalMapping,
             obj.statReward,
-            obj.xpReward
+            obj.xpReward,
+            obj.narrativeDescription || obj.description, // Story framing
+            obj.mechanicalDescription || obj.description, // What they do
+            obj.storyBeat || null // Narrative on completion
           ]
         );
       }
@@ -245,6 +260,19 @@ class QuestService {
       [characterId]
     );
     return parseInt(result.rows[0].count);
+  }
+
+  /**
+   * Get user's active goals (for quest generation)
+   */
+  async getUserGoals(characterId) {
+    const result = await pool.query(
+      `SELECT * FROM goals
+       WHERE character_id = $1 AND active = true
+       ORDER BY created_at DESC`,
+      [characterId]
+    );
+    return transformKeysToCamel(result.rows);
   }
 
   /**
@@ -425,12 +453,12 @@ class QuestService {
         [objectiveId]
       );
 
-      // Award stat and XP
+      // Award stat and XP (column names are str_xp, dex_xp, etc.)
+      // Note: Total XP is calculated as sum of all stat XPs, not stored separately
       const statReward = objective.stat_reward.toLowerCase();
       await client.query(
         `UPDATE characters
-         SET ${statReward} = ${statReward} + 1,
-             xp = xp + $1
+         SET ${statReward}_xp = ${statReward}_xp + $1
          WHERE id = $2`,
         [objective.xp_reward, characterId]
       );
@@ -468,8 +496,32 @@ class QuestService {
         );
         questCompleted = true;
 
-        // Award quest rewards
+        // Track quest completion milestones (character qualities)
+        const characterQualitiesService = require('./characterQualitiesService');
+        const narrativeSummary = require('./narrativeSummary');
         const quest = questCheck.rows[0];
+
+        try {
+          const qualitiesSet = await characterQualitiesService.trackQuestCompletion(characterId, quest);
+          console.log('[QuestService] Character qualities updated:', Object.keys(qualitiesSet).length, 'qualities set');
+        } catch (qualityError) {
+          console.error('[QuestService] Failed to track qualities (non-fatal):', qualityError.message);
+        }
+
+        // Update narrative summary (prevents "11 kids problem")
+        try {
+          await narrativeSummary.updateSummary(characterId, {
+            quest,
+            outcome: {
+              narrativeText: `Completed "${quest.title}" - ${quest.description}`
+            }
+          });
+          console.log('[QuestService] Narrative summary updated');
+        } catch (summaryError) {
+          console.error('[QuestService] Failed to update narrative summary (non-fatal):', summaryError.message);
+        }
+
+        // Award quest rewards
         if (quest.gold_reward > 0) {
           await client.query(
             'UPDATE characters SET gold = gold + $1 WHERE id = $2',

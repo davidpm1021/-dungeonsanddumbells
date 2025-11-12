@@ -332,10 +332,45 @@ async function generateCharacterArcQuests(characterId, goalAnalysis, currentQues
     return [];
   }
 
+  const quests = [];
+
   // Generate quests focused on player's top stat priorities
-  // TODO: Integrate with Quest Creator agent
   console.log(`[DynamicQuest] Character arc generation: ${available} slots available, focus: ${goalAnalysis.primaryFocus}`);
-  return [];
+
+  // Get character data
+  const characterResult = await pool.query(
+    `SELECT * FROM characters WHERE id = $1`,
+    [characterId]
+  );
+
+  if (characterResult.rows.length === 0) {
+    return [];
+  }
+
+  const character = characterResult.rows[0];
+
+  // Generate quest for primary stat focus (if available)
+  if (available > 0 && goalAnalysis.primaryFocus) {
+    try {
+      const decision = {
+        questType: 'character_arc',
+        suggestedDifficulty: 'medium',
+        suggestedTheme: `${goalAnalysis.primaryFocus} specialization`,
+        targetStat: goalAnalysis.primaryFocus
+      };
+
+      const questData = await questCreator.generateQuest(decision, character, characterId);
+
+      if (questData && questData.title) {
+        quests.push(questData);
+        console.log(`[DynamicQuest] Generated character arc quest: ${questData.title}`);
+      }
+    } catch (error) {
+      console.error(`[DynamicQuest] Failed to generate character arc quest for ${goalAnalysis.primaryFocus}:`, error.message);
+    }
+  }
+
+  return quests;
 }
 
 /**
@@ -353,10 +388,44 @@ async function generateWorldEventQuests(characterId, worldEvents, currentQuests)
     return [];
   }
 
-  // Generate quests for active world events
-  // TODO: Integrate with Quest Creator agent
+  const quests = [];
+
   console.log(`[DynamicQuest] World event generation: ${available} slots available, ${worldEvents.length} active events`);
-  return [];
+
+  // Get character data
+  const characterResult = await pool.query(
+    `SELECT * FROM characters WHERE id = $1`,
+    [characterId]
+  );
+
+  if (characterResult.rows.length === 0) {
+    return [];
+  }
+
+  const character = characterResult.rows[0];
+
+  // Generate quest for first active world event
+  const worldEvent = worldEvents[0];
+
+  try {
+    const decision = {
+      questType: 'world_event',
+      suggestedDifficulty: 'medium',
+      suggestedTheme: worldEvent.event_name,
+      targetStat: 'STR' // World events typically don't target specific stats
+    };
+
+    const questData = await questCreator.generateQuest(decision, character, characterId);
+
+    if (questData && questData.title) {
+      quests.push(questData);
+      console.log(`[DynamicQuest] Generated world event quest: ${questData.title}`);
+    }
+  } catch (error) {
+    console.error(`[DynamicQuest] Failed to generate world event quest:`, error.message);
+  }
+
+  return quests;
 }
 
 /**
@@ -416,10 +485,44 @@ async function generateCorrectiveQuests(characterId, goalAnalysis, currentQuests
     return [];
   }
 
-  // Generate quest to address stat imbalance
-  // TODO: Integrate with Quest Creator agent
+  const quests = [];
+
   console.log(`[DynamicQuest] Corrective generation: ${available} slots available, neglected stats: ${goalAnalysis.neglectedStats.join(', ')}`);
-  return [];
+
+  // Get character data
+  const characterResult = await pool.query(
+    `SELECT * FROM characters WHERE id = $1`,
+    [characterId]
+  );
+
+  if (characterResult.rows.length === 0) {
+    return [];
+  }
+
+  const character = characterResult.rows[0];
+
+  // Generate quest for most neglected stat
+  const neglectedStat = goalAnalysis.neglectedStats[0];
+
+  try {
+    const decision = {
+      questType: 'corrective',
+      suggestedDifficulty: 'easy', // Make corrective quests accessible
+      suggestedTheme: `${neglectedStat} balance`,
+      targetStat: neglectedStat
+    };
+
+    const questData = await questCreator.generateQuest(decision, character, characterId);
+
+    if (questData && questData.title) {
+      quests.push(questData);
+      console.log(`[DynamicQuest] Generated corrective quest: ${questData.title}`);
+    }
+  } catch (error) {
+    console.error(`[DynamicQuest] Failed to generate corrective quest for ${neglectedStat}:`, error.message);
+  }
+
+  return quests;
 }
 
 /**

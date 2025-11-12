@@ -35,8 +35,19 @@ class CharacterService {
       [userId, name.trim(), characterClass]
     );
 
+    const characterId = result.rows[0].id;
+
+    // Initialize character qualities for progression tracking
+    const characterQualitiesService = require('./characterQualitiesService');
+    try {
+      await characterQualitiesService.initializeNewCharacter(characterId);
+      console.log(`[CharacterService] Initialized progression qualities for character ${characterId}`);
+    } catch (qualityError) {
+      console.error('[CharacterService] Failed to initialize qualities (non-fatal):', qualityError.message);
+    }
+
     // Get character with computed stats from view
-    const character = await this.getCharacterById(result.rows[0].id);
+    const character = await this.getCharacterById(characterId);
     return character;
   }
 

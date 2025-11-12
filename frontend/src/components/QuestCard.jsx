@@ -9,9 +9,11 @@ const QUEST_STATUS_INFO = {
   failed: { label: 'Failed', color: 'bg-red-50 text-red-700 border-red-200' },
 };
 
-export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjective, onMakeChoice, character }) {
+export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjective, onMakeChoice, onAbandon, character }) {
   const [showDetails, setShowDetails] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
   const [choices, setChoices] = useState([]);
   const [loadingChoices, setLoadingChoices] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
@@ -92,7 +94,7 @@ export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjec
 
   const handleComplete = async () => {
     if (objectives.length > 0 && !allObjectivesComplete) {
-      alert('Please complete all objectives first!');
+      console.log('Please complete all objectives first');
       return;
     }
 
@@ -126,6 +128,26 @@ export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjec
     } catch (err) {
       console.error('Failed to make choice:', err);
       throw err;
+    }
+  };
+
+  const handleAbandon = async () => {
+    if (!onAbandon) return;
+
+    if (!confirmAbandon) {
+      setConfirmAbandon(true);
+      setTimeout(() => setConfirmAbandon(false), 3000); // Reset after 3 seconds
+      return;
+    }
+
+    setAbandoning(true);
+    setConfirmAbandon(false);
+    try {
+      await onAbandon(quest.id);
+    } catch (err) {
+      console.error('Failed to abandon quest:', err);
+    } finally {
+      setAbandoning(false);
     }
   };
 
@@ -167,6 +189,42 @@ export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjec
           {quest.description || quest.narrativeText || 'A mysterious quest awaits...'}
         </p>
       </div>
+
+      {/* Opening Scene - Immersive Narrative */}
+      {quest.openingScene && (
+        <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-bold text-purple-700">📖 The Story Unfolds...</span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {quest.openingScene}
+          </p>
+        </div>
+      )}
+
+      {/* NPC Dialogue */}
+      {quest.npcDialogue && quest.npcDialogue.npcName && (
+        <div className="mb-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">👤</span>
+            <span className="text-sm font-bold text-amber-800">{quest.npcDialogue.npcName}</span>
+          </div>
+          {quest.npcDialogue.opening && (
+            <div className="mb-2">
+              <p className="text-sm text-gray-700 leading-relaxed italic">
+                "{quest.npcDialogue.opening}"
+              </p>
+            </div>
+          )}
+          {quest.status === 'active' && quest.npcDialogue.during && (
+            <div className="mt-2 pt-2 border-t border-amber-200">
+              <p className="text-xs text-amber-700 italic">
+                💭 {quest.npcDialogue.during}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Objectives */}
       {objectives.length > 0 && quest.status !== 'completed' && (
@@ -302,6 +360,22 @@ export default function QuestCard({ quest, onAccept, onComplete, onCompleteObjec
             className="btn btn-secondary text-sm"
           >
             {showDetails ? 'Less' : 'More'}
+          </button>
+        )}
+
+        {/* Abandon button for non-completed quests */}
+        {quest.status !== 'completed' && onAbandon && (
+          <button
+            onClick={handleAbandon}
+            disabled={abandoning}
+            className={`btn text-sm disabled:opacity-50 ${
+              confirmAbandon
+                ? 'bg-red-500 text-white border-red-600 hover:bg-red-600'
+                : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+            }`}
+            title={confirmAbandon ? 'Click again to confirm' : 'Abandon this quest'}
+          >
+            {abandoning ? 'Abandoning...' : confirmAbandon ? '⚠ Click to Confirm' : '🗑️ Abandon'}
           </button>
         )}
       </div>

@@ -74,7 +74,7 @@ async function loadCharacter(req, res, next) {
         SELECT c.*, cs.str, cs.dex, cs.con, cs.int, cs.wis, cs.cha,
                cs.str_xp, cs.dex_xp, cs.con_xp, cs.int_xp, cs.wis_xp, cs.cha_xp
         FROM characters c
-        JOIN character_stats cs ON c.id = cs.character_id
+        JOIN character_stats cs ON c.id = cs.id
         WHERE c.id = $1 AND c.user_id = $2
       `;
       params = [characterId, req.user.userId];
@@ -84,7 +84,7 @@ async function loadCharacter(req, res, next) {
         SELECT c.*, cs.str, cs.dex, cs.con, cs.int, cs.wis, cs.cha,
                cs.str_xp, cs.dex_xp, cs.con_xp, cs.int_xp, cs.wis_xp, cs.cha_xp
         FROM characters c
-        JOIN character_stats cs ON c.id = cs.character_id
+        JOIN character_stats cs ON c.id = cs.id
         WHERE c.user_id = $1
         ORDER BY c.created_at DESC
         LIMIT 1

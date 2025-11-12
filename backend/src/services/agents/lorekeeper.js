@@ -82,37 +82,41 @@ class Lorekeeper {
    * Extract JSON from response (handles markdown code blocks)
    */
   extractJSON(content) {
-    // Remove markdown code blocks if present
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      return jsonMatch[1].trim();
+    let cleaned = content.trim();
+
+    // Remove markdown code blocks if present - more aggressive approach
+    if (cleaned.startsWith('```')) {
+      // Try regex matching first
+      const jsonMatch = cleaned.match(/```json\s*([\s\S]*?)\s*```/i);
+      if (jsonMatch) {
+        cleaned = jsonMatch[1].trim();
+      } else {
+        // Fallback: also handle plain ``` blocks
+        const codeMatch = cleaned.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeMatch) {
+          cleaned = codeMatch[1].trim();
+        } else {
+          // Last resort: simple replacement
+          cleaned = cleaned.replace(/^```[a-z]*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        }
+      }
     }
 
-    // Also handle plain ``` blocks
-    const codeMatch = content.match(/```\s*([\s\S]*?)\s*```/);
-    if (codeMatch) {
-      return codeMatch[1].trim();
+    // Final validation - ensure it looks like JSON
+    if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+      console.error('[Lorekeeper] Content does not appear to be JSON:', cleaned.substring(0, 100));
+      throw new Error('Response does not appear to be valid JSON');
     }
 
-    // Return as-is if no code blocks found
-    return content.trim();
+    return cleaned;
   }
 
   /**
    * Get Lorekeeper system prompt
    */
   getLorekeeperSystemPrompt() {
-    return `You are the Lorekeeper for Dumbbells & Dragons, guardian of narrative consistency.
-
-Your role is to validate generated content against the World Bible and ensure:
-1. No contradictions with established world rules
-2. NPC behavior matches their documented personality
-3. Tone matches the required style (earnest but not preachy)
-4. No forbidden tones (shame, toxic positivity, patronizing, sarcasm)
-5. Magic system constraints are respected
-6. References to locations/NPCs/events are accurate
-
-<world_bible>
+    // Serial Position Effect: Place World Bible at BOTH start AND end
+    const worldBibleSection = `<world_bible>
 # Core Rules (NEVER VIOLATE)
 ${WORLD_BIBLE.core_rules.map((rule, i) => `${i + 1}. ${rule}`).join('\n')}
 
@@ -134,7 +138,72 @@ ${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
 ${Object.entries(WORLD_BIBLE.locations).slice(0, 5).map(([key, loc]) => `
 - ${loc.name}: ${loc.description}
 `).join('\n')}
-</world_bible>
+</world_bible>`;
+
+    return `You are the Lorekeeper for Dumbbells & Dragons, guardian of narrative consistency.
+
+${worldBibleSection}
+
+## YOUR VALIDATION CRITERIA (STRICT)
+
+You must validate against these specific aspects with the following score breakdown:
+
+1. **World Rules Compliance (40% of score)**:
+   - No mention of death, killing, or character mortality
+   - NPCs use persuasion/obstacles, never combat spells
+   - The Six Pillars are the source of power, not traditional magic
+   - Time moves forward (no time loops or resets)
+   - NPCs remember player actions (persistent relationships)
+
+2. **Character Consistency (30% of score)**:
+   - NPC behavior matches their documented personality
+   - NPC dialogue matches their voice (e.g., Elder Thorne speaks in short, gruff sentences)
+   - References to known NPCs are accurate
+   - Unknown NPCs must fit the world's tone and style
+
+3. **Plot Logic & Continuity (20% of score)**:
+   - Quest objectives are achievable
+   - Story makes internal sense
+   - References to locations are accurate
+   - Power levels are appropriate (no god-like abilities at low level)
+   - Causal relationships are logical
+
+4. **Tone & Creativity (10% of score)**:
+   - Tone is earnest but not preachy
+   - No forbidden tones: shame, toxic positivity, patronizing, sarcasm
+   - Quest feels fresh and engaging
+   - Avoids generic fantasy tropes
+
+## VALIDATION EXAMPLES
+
+❌ **BAD - Violates Core Rules:**
+- "If you fail, you will die" (mentions death)
+- "Cast a fireball at the enemies" (combat spell)
+- "You were weak and pathetic before" (shaming tone)
+- "Just believe in yourself and you'll succeed!" (toxic positivity)
+
+✅ **GOOD - Follows Guidelines:**
+- "If you don't succeed, the Pillar's energy will fade further" (consequences without death)
+- "Channel your connection to the Pillar to create a barrier" (magic from Pillars)
+- "The training will be difficult, but I see potential in you" (earnest encouragement)
+- "Your dedication to the Pillar of Might grows stronger each day" (factual acknowledgment)
+
+## SCORING RUBRIC
+
+- **90-100**: Excellent - No violations, strong narrative, fits world perfectly
+- **85-89**: Good - Minor issues only, passes validation
+- **70-84**: Acceptable - Some major issues, but core rules intact
+- **Below 70**: UNACCEPTABLE - Critical violations, quest must be rejected
+
+**Target Score: 85+** (anything below fails validation)
+
+${worldBibleSection}
+
+## CRITICAL REMINDERS (Serial Position Effect)
+- Check EVERY NPC reference against the known NPCs list
+- Verify NO forbidden words: death, die, kill, pathetic, weak, failure
+- Ensure tone is NEVER shaming, patronizing, or toxic-positive
+- Validate that magic comes from The Six Pillars, not spells
 
 Respond with ONLY valid JSON in this structure:
 {
@@ -142,7 +211,7 @@ Respond with ONLY valid JSON in this structure:
   "passed": boolean (true if score >= 85),
   "violations": [
     {
-      "type": "tone" | "contradiction" | "npc_behavior" | "magic_system" | "unknown_reference",
+      "type": "tone" | "contradiction" | "npc_behavior" | "magic_system" | "unknown_reference" | "plot_logic",
       "severity": "critical" | "major" | "minor",
       "description": string,
       "location": string (where in the quest this occurs)

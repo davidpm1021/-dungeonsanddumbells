@@ -30,6 +30,7 @@ const questRoutes = require('./routes/quests');
 const storyRoutes = require('./routes/story');
 const lorekeeperRoutes = require('./routes/lorekeeper');
 const monitoringRoutes = require('./routes/monitoring');
+const worldEventRoutes = require('./routes/worldEvents');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);
@@ -39,6 +40,7 @@ app.use('/api/quests', questRoutes);
 app.use('/api/story', storyRoutes);
 app.use('/api/lorekeeper', lorekeeperRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/world-events', worldEventRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

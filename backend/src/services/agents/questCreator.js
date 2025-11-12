@@ -33,12 +33,38 @@ class QuestCreator {
         targetStat: decision.targetStat
       });
 
-      // Build context for quest generation
+      // Fetch recent quest titles to avoid repetition (last 5 quests)
+      const recentTitles = await this.getRecentQuestTitles(characterId, 5);
+
+      // Retrieve relevant past events via RAG (Research: 41.8% fewer hallucinations)
+      const narrativeRAG = require('../narrativeRAG');
+      let relevantEvents = [];
+      try {
+        const rawEvents = await narrativeRAG.retrieveRelevantEvents(
+          characterId,
+          decision.suggestedTheme, // Use quest theme as query
+          5 // Top 5 most relevant events
+        );
+        relevantEvents = rawEvents;
+        console.log('[QuestCreator] Retrieved', relevantEvents.length, 'relevant past events via RAG');
+      } catch (ragError) {
+        console.error('[QuestCreator] RAG retrieval failed (non-fatal):', ragError.message);
+      }
+
+      // Build context for quest generation (INCLUDE USER GOALS!)
       const context = {
         questType: decision.questType,
         difficulty: decision.suggestedDifficulty,
         theme: decision.suggestedTheme,
-        targetStat: decision.targetStat
+        targetStat: decision.targetStat,
+        userGoals: decision.userGoals || [], // User's actual wellness goals
+        recentQuestTitles: recentTitles, // Enforce variety
+        relevantPastEvents: relevantEvents, // RAG-retrieved context
+        varietyConstraints: [
+          'DO NOT use generic titles like "The Awakening", "Awakening Trial", or "The Beginning"',
+          'Create unique, specific titles that reflect the quest content',
+          'Avoid repeating patterns from recent quests'
+        ]
       };
 
       // Build prompt
@@ -54,20 +80,43 @@ class QuestCreator {
       // Select model (Quest Creator uses Sonnet 3.5 for content generation)
       const model = modelRouter.getModelForAgent('quest_creator');
 
+      console.log('[QuestCreator] About to call Claude API with', context.userGoals?.length || 0, 'user goals');
+
       // Call Claude API
       const response = await claudeAPI.call({
         model,
         system,
         messages,
         maxTokens: 1024,
-        temperature: 0.8, // Higher creativity for quest generation
+        temperature: 0.5, // Research-informed: 0.3-0.5 for consistency-critical tasks
         agentType: 'quest_creator',
         characterId,
         useCache: false // Don't cache quests (each should be unique)
       });
 
-      // Parse JSON response
-      const questData = JSON.parse(response.content);
+      console.log('[QuestCreator] Claude response received, length:', response.content?.length);
+      console.log('[QuestCreator] First 500 chars:', response.content?.substring(0, 500));
+
+      // Parse JSON response - strip markdown code blocks if present
+      let jsonContent = response.content.trim();
+
+      // More robust markdown fence removal - handle various formats
+      if (jsonContent.startsWith('```')) {
+        // Use multiline regex to remove markdown fences
+        // Matches: ```json\n{...}\n``` or ```\n{...}\n``` or ``` json{...}```
+        jsonContent = jsonContent.replace(/^```[a-z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+        jsonContent = jsonContent.trim();
+
+        console.log('[QuestCreator] Stripped markdown fences, first 200 chars:', jsonContent.substring(0, 200));
+      }
+
+      // Final validation - check if it starts with { or [
+      if (!jsonContent.startsWith('{') && !jsonContent.startsWith('[')) {
+        console.error('[QuestCreator] Content does not start with JSON:', jsonContent.substring(0, 100));
+        throw new Error('Response does not appear to be valid JSON');
+      }
+
+      const questData = JSON.parse(jsonContent);
 
       // Validate quest structure
       this.validateQuest(questData);
@@ -94,6 +143,8 @@ class QuestCreator {
 
     } catch (error) {
       console.error('[QuestCreator] Error generating quest:', error.message);
+      console.error('[QuestCreator] Full error:', error);
+      console.error('[QuestCreator] Stack:', error.stack);
 
       // Fallback to template-based quest
       return this.getFallbackQuest(decision, character);
@@ -101,7 +152,7 @@ class QuestCreator {
   }
 
   /**
-   * Validate quest structure
+   * Validate quest structure (narrative-first)
    */
   validateQuest(quest) {
     // Title validation
@@ -113,19 +164,24 @@ class QuestCreator {
       throw new Error('Invalid quest: title exceeds 100 characters');
     }
 
-    // Description validation
+    // Opening scene validation (narrative-first!)
+    if (!quest.openingScene || typeof quest.openingScene !== 'string') {
+      throw new Error('Invalid quest: openingScene is required (narrative-first approach)');
+    }
+
+    const sceneWords = quest.openingScene.split(' ').length;
+    if (sceneWords < 50) {
+      console.warn('[QuestCreator] Opening scene is too short, needs more narrative depth');
+    }
+
+    // Description validation (quest log summary)
     if (!quest.description || typeof quest.description !== 'string') {
       throw new Error('Invalid quest: description is required');
     }
 
-    const descWords = quest.description.split(' ').length;
-    if (descWords < 10 || descWords > 100) {
-      throw new Error('Invalid quest: description must be 10-100 words');
-    }
-
-    // Check for second person, present tense
-    if (!quest.description.toLowerCase().includes('you')) {
-      console.warn('[QuestCreator] Description may not be in second person');
+    // NPC dialogue validation
+    if (!quest.npcDialogue || !quest.npcDialogue.npcName || !quest.npcDialogue.opening) {
+      console.warn('[QuestCreator] Missing or incomplete NPC dialogue - quest may lack personality');
     }
 
     // Objectives validation
@@ -134,8 +190,14 @@ class QuestCreator {
     }
 
     quest.objectives.forEach((obj, i) => {
-      if (!obj.description || typeof obj.description !== 'string') {
-        throw new Error(`Invalid quest: objective ${i} missing description`);
+      // Narrative description (story framing)
+      if (!obj.narrativeDescription || typeof obj.narrativeDescription !== 'string') {
+        console.warn(`[QuestCreator] Objective ${i} missing narrativeDescription`);
+      }
+
+      // Mechanical description (what they actually do)
+      if (!obj.mechanicalDescription || typeof obj.mechanicalDescription !== 'string') {
+        console.warn(`[QuestCreator] Objective ${i} missing mechanicalDescription`);
       }
 
       if (!obj.goalMapping || typeof obj.goalMapping !== 'string') {
@@ -272,6 +334,33 @@ class QuestCreator {
     // - Dynamic dialogue from NPCs
     // - Consequence branches based on choices
     return quest;
+  }
+
+  /**
+   * Get recent quest titles to enforce variety
+   *
+   * @param {number} characterId - Character ID
+   * @param {number} limit - Number of recent quests to fetch
+   * @returns {Promise<string[]>} - Array of recent quest titles
+   */
+  async getRecentQuestTitles(characterId, limit = 5) {
+    const pool = require('../../config/database');
+
+    try {
+      const result = await pool.query(
+        `SELECT title
+         FROM quests
+         WHERE character_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [characterId, limit]
+      );
+
+      return result.rows.map(row => row.title);
+    } catch (error) {
+      console.error('[QuestCreator] Error fetching recent quest titles:', error.message);
+      return []; // Return empty array on error
+    }
   }
 }
 

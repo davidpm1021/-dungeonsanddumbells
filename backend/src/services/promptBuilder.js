@@ -139,7 +139,7 @@ Your role is to:
 
 Your summaries enable the AI to remember the player's journey without consuming excessive context.`,
 
-      lorekeeper: `You are the Lorekeeper for Dumbbells & Dragons, the guardian of narrative consistency.
+      lorekeeper: () => `You are the Lorekeeper for Dumbbells & Dragons, the guardian of narrative consistency.
 
 Your role is to validate generated content against the World Bible and established facts:
 - Check for contradictions with world rules
@@ -276,49 +276,144 @@ ${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
    * Build user message with task instructions
    */
   buildUserMessage(agentType, character, context) {
-    const messages = {
-      story_coordinator: `Analyze ${character.name}'s current state and decide what content they need next.
+    console.log('[PromptBuilder] Building message for', agentType, 'with context:', Object.keys(context));
+    console.log('[PromptBuilder] Character:', character?.name, character?.class);
+    console.log('[PromptBuilder] User goals count:', context.userGoals?.length);
 
-Consider:
-- Are their stats balanced or is one being neglected?
-- How many active quests do they have?
-- What was their last activity?
+    // Use functions to delay template literal evaluation
+    const messageBuilders = {
+      story_coordinator: () => `Analyze ${character.name}'s current state and decide what content they need next.
+
+## PLAYER PROGRESSION
+- Active quests: ${context.activeQuestCount || 0}
+- Completed quests: ${context.completedQuestCount || 0}
+- Character qualities: ${Object.keys(context.characterQualities || {}).length > 0 ? JSON.stringify(context.characterQualities) : 'None yet'}
+
+## THEME PROGRESSION GUIDE
+Choose themes dynamically based on player progression:
+
+**First-Time Player (0 completed quests, no qualities)**:
+- "pillar_introduction" - Meet Elder Thorne, learn about the Six Pillars
+- "first_steps" - Begin training, choose a Pillar to focus on
+
+**Early Game (1-3 completed quests)**:
+- "skill_discovery" - Unlock new abilities related to their stat
+- "mentor_relationship" - Deepen bond with Elder Thorne or meet Lady Seraphine
+- "local_crisis" - Small problem in Thornhaven that needs their help
+
+**Mid Game (4-10 completed quests)**:
+- "mystery_begins" - Strange occurrences related to Pillar energy
+- "faction_choice" - Choose between competing groups (Guards, Scholars, Merchants)
+- "npc_personal_quest" - Help an NPC with their backstory
+- "rival_encounter" - Meet another adventurer (not hostile, competitive)
+
+**Late Game (11+ completed quests)**:
+- "pillar_restoration" - Major quest to restore a fading Pillar
+- "kingdom_threat" - Larger crisis affecting all of Vitalia
+- "character_milestone" - Personal achievement/transformation
+
+**DO NOT repeat themes too often. Vary between story types:**
+- Main story quests advance the Pillar crisis
+- Side quests develop NPCs and world-building
+- Corrective quests help balance neglected stats
+
+## STAT BALANCE ASSESSMENT
+${character ? `Current stats: STR ${character.str || 10}, DEX ${character.dex || 10}, CON ${character.con || 10}, INT ${character.int || 10}, WIS ${character.wis || 10}, CHA ${character.cha || 10}` : ''}
+
+If any stat is 3+ points lower than others, consider a corrective quest for that stat.
 
 Respond with a JSON object:
 {
   "needsQuest": boolean,
   "questType": "main" | "side" | "corrective",
-  "suggestedTheme": string,
+  "suggestedTheme": string (choose from themes above - be specific!),
   "suggestedDifficulty": "easy" | "medium" | "hard",
-  "reasoning": string,
+  "reasoning": string (explain your theme choice based on progression),
   "targetStat": "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA" (if corrective)
 }`,
 
-      quest_creator: `Generate a ${context.questType || 'side'} quest for ${character.name}.
+      quest_creator: () => `You are a master fantasy storyteller crafting a ${context.questType || 'side'} quest${character?.name ? ` for ${character.name}` : ''}.
 
-Requirements:
-- Difficulty: ${context.difficulty || 'medium'}
-${context.targetStat ? `- Must focus on ${context.targetStat} (${WORLD_BIBLE.six_pillars[context.targetStat].name})` : ''}
-- Theme: ${context.theme || 'Personal growth and adventure'}
+## CHARACTER CONTEXT
+${character?.name ? `${character.name} is a ${character.class}` : 'The player is'} training in ${context.targetStat ? WORLD_BIBLE.six_pillars[context.targetStat].name : 'multiple Pillars'}.
+${context.userGoals && context.userGoals.length > 0 ? `\n## THEIR TRAINING REGIMEN (USE THESE AS OBJECTIVES):\n${context.userGoals.map(g => `- ${g.name}: ${g.description} (${g.frequency})`).join('\n')}` : ''}
+${context.relevantPastEvents && context.relevantPastEvents.length > 0 ? `\n## RELEVANT PAST EVENTS (Reference for Continuity):\n${this.formatPastEventsForPrompt(context.relevantPastEvents)}\n\nUse these to create narrative continuity - reference past NPCs, locations, or story threads when appropriate.` : ''}
 
-Respond with a JSON object:
+## VARIETY CONSTRAINTS (CRITICAL!)
+${context.recentQuestTitles && context.recentQuestTitles.length > 0 ? `Recent quest titles to AVOID repeating:\n${context.recentQuestTitles.map(t => `- "${t}"`).join('\n')}\n\n` : ''}${context.varietyConstraints ? context.varietyConstraints.map(c => `- ${c}`).join('\n') : ''}
+
+DO NOT use generic, repetitive titles. Each quest must feel fresh and unique.
+
+## YOUR TASK
+Create an IMMERSIVE NARRATIVE EXPERIENCE. Lead with story, not stats.
+
+The player should feel like they're:
+- Living in a fantasy world, not tracking workouts
+- Making meaningful choices that affect their story
+- Building relationships with memorable NPCs
+- Uncovering mysteries about the Six Pillars
+- Part of something larger than themselves
+
+## NARRATIVE REQUIREMENTS
+1. **Opening Scene** (100-150 words): Set the scene dramatically. Where are they? Who do they meet? What's the tension?
+   - Use vivid sensory details (sight, sound, smell)
+   - Show, don't tell
+   - Create immediate intrigue
+   - Reference their past actions if available
+
+2. **NPC Interaction**: Include a specific named NPC from the World Bible (Elder Thorne, Lady Seraphine, etc.)
+   - Give them distinct voice and personality
+   - Show their relationship with the player
+   - Have them speak in dialogue, not summary
+
+3. **Story Stakes**: Make it clear WHY this matters
+   - Connect to the Pillar crisis
+   - Reference world events or past player choices
+   - Create emotional investment
+
+${context.userGoals ? `\n4. **Objectives as Story Beats**: Frame their existing training as narrative progression
+   - Don't say "do 3 strength workouts" - say "prove your dedication to the Pillar of Might"
+   - Wrap wellness goals in story context
+   - Make completing goals feel like advancing the plot` : ''}
+
+Respond with JSON:
 {
-  "title": string (max 50 chars),
-  "description": string (2-3 sentences, present tense, second person),
+  "title": string (evocative, not generic - "The Binding Ritual" not "Train Strength"),
+  "openingScene": string (100-150 words, immersive, present tense, second person),
+  "description": string (1-2 sentence quest log summary),
+  "npcDialogue": {
+    "npcName": string,
+    "opening": string (what they say when giving the quest),
+    "during": string (encouragement during the quest - optional),
+    "completion": string (what they say when completed)
+  },
   "objectives": [
     {
-      "description": string,
-      "goalMapping": string (wellness activity),
+      "narrativeDescription": string (story framing - "Prove your worth to the Pillar of Might"),
+      "mechanicalDescription": string (what they actually do - "Complete 3 strength training sessions"),
+      "goalMapping": string (${context.userGoals ? 'match to their actual goals listed above' : 'STR/DEX/CON/INT/WIS/CHA'}),
       "statReward": "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA",
-      "xpReward": number
+      "xpReward": number,
+      "storyBeat": string (narrative that plays when this objective completes)
     }
   ],
-  "npcInvolved": string (optional),
-  "estimatedDuration": string ("1 day", "3 days", "1 week"),
-  "prerequisites": [] (empty for now)
-}`,
+  "worldContext": string (2-3 sentences about what's happening in Thornhaven related to this quest),
+  "choicePoint": {
+    "description": string (a decision the player must make during the quest - optional),
+    "options": [
+      {
+        "label": string,
+        "consequence": string
+      }
+    ]
+  } (optional for now),
+  "estimatedDuration": string,
+  "questType": "${context.questType || 'side'}"
+}
 
-      memory_manager: `Compress the following events into a concise summary (max 200 words):
+CRITICAL: This is a STORY first, a wellness tracker second. Make the player forget they're exercising.`,
+
+      memory_manager: () => `Compress the following events into a concise summary (max 200 words):
 
 ${context.events?.map((e, i) => `${i + 1}. ${e.event_description}`).join('\n')}
 
@@ -339,7 +434,7 @@ Respond with a JSON object:
   "statChanges": { "STR": number, ... }
 }`,
 
-      consequence_engine: `${character.name} has ${context.questFailed ? 'not completed' : 'completed'} the quest "${context.quest.title}".
+      consequence_engine: () => `${character.name} has ${context.questFailed ? 'not completed' : 'completed'} the quest "${context.quest.title}".
 
 <quest_details>
 Title: ${context.quest.title}
@@ -387,7 +482,15 @@ Respond with a JSON object:
 }`
     };
 
-    return messages[agentType] || 'Process the given context and respond appropriately.';
+    console.log('[PromptBuilder] Successfully built message for', agentType);
+
+    // Call the function to get the actual message
+    const builder = messageBuilders[agentType];
+    if (builder) {
+      return builder();
+    }
+
+    return 'Process the given context and respond appropriately.';
   }
 
   /**
@@ -455,6 +558,40 @@ Ensure all strings are properly escaped and the JSON is parseable.
     if (stdDev < 4) return 'Mostly balanced';
     if (stdDev < 6) return 'Somewhat imbalanced';
     return 'Heavily imbalanced';
+  }
+
+  /**
+   * Format past events for prompt context (RAG)
+   *
+   * @param {Array} events - Past narrative events
+   * @returns {string} - Formatted text for prompt
+   */
+  formatPastEventsForPrompt(events) {
+    if (!events || events.length === 0) {
+      return 'No relevant past events.';
+    }
+
+    return events.map((event, i) => {
+      const participants = event.participants ? ` (with ${event.participants.join(', ')})` : '';
+      const timeAgo = this.getTimeAgo(event.created_at || event.createdAt);
+
+      return `${i + 1}. [${timeAgo}] ${event.event_description || event.eventDescription}${participants}`;
+    }).join('\n');
+  }
+
+  /**
+   * Get human-readable time ago
+   */
+  getTimeAgo(timestamp) {
+    if (!timestamp) return 'Recently';
+
+    const daysAgo = Math.floor((Date.now() - new Date(timestamp)) / (1000 * 60 * 60 * 24));
+
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yesterday';
+    if (daysAgo < 7) return `${daysAgo} days ago`;
+    if (daysAgo < 30) return `${Math.floor(daysAgo / 7)} weeks ago`;
+    return `${Math.floor(daysAgo / 30)} months ago`;
   }
 }
 

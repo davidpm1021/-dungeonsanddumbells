@@ -68,6 +68,9 @@ export const characters = {
 
   getChoiceHistory: (id, limit = 20) =>
     api.get(`/characters/${id}/choices`, { params: { limit } }),
+
+  getQualities: (id) =>
+    api.get(`/characters/${id}/qualities`),
 };
 
 // Goal endpoints
@@ -121,6 +124,9 @@ export const quests = {
 
   makeChoice: (questId, choiceId, characterId, optionId) =>
     api.post(`/quests/${questId}/choices/${choiceId}/make`, { characterId, optionId }),
+
+  abandon: (questId, characterId) =>
+    api.delete(`/quests/${questId}/abandon`, { data: { characterId } }),
 };
 
 // Narrative endpoints

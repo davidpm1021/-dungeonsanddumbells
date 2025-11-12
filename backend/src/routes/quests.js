@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const pool = require('../config/database');
 const questService = require('../services/questService');
 const choiceService = require('../services/choiceService');
+const goalQuestMapper = require('../services/goalQuestMapper');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
@@ -399,6 +401,92 @@ router.post('/:id/choices/:choiceId/make', async (req, res) => {
     }
 
     res.status(500).json({ error: 'Failed to make choice' });
+  }
+});
+
+/**
+ * POST /api/quests/generate-from-goals
+ *
+ * Generate quests that align with player's actual goals
+ * Body: { characterId: number }
+ */
+router.post('/generate-from-goals', async (req, res) => {
+  try {
+    const { characterId } = req.body;
+
+    if (!characterId) {
+      return res.status(400).json({ error: 'characterId is required' });
+    }
+
+    // Verify character belongs to user
+    const character = await questService.getCharacter(characterId);
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    if (character.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Map goals to quests
+    const result = await goalQuestMapper.mapGoalsToQuests(characterId);
+
+    if (!result.has_goals) {
+      return res.status(200).json({
+        success: false,
+        message: 'No active goals found. Create goals first to generate personalized quests.',
+        has_goals: false
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Generated ${result.aligned_quests.length} quests based on your goals`,
+      goal_analysis: result.goal_analysis,
+      quests: result.aligned_quests
+    });
+
+  } catch (error) {
+    console.error('[QuestRoutes] Error generating goal-aligned quests:', error);
+    res.status(500).json({ error: 'Failed to generate goal-aligned quests' });
+  }
+});
+
+/**
+ * DELETE /api/quests/:id/abandon
+ *
+ * Abandon (delete) a quest
+ */
+router.delete('/:id/abandon', async (req, res) => {
+  try {
+    const questId = parseInt(req.params.id);
+    const { characterId } = req.body;
+
+    if (!characterId) {
+      return res.status(400).json({ error: 'characterId is required' });
+    }
+
+    // Verify quest exists and belongs to character
+    const questResult = await pool.query(
+      'SELECT * FROM quests WHERE id = $1 AND character_id = $2',
+      [questId, characterId]
+    );
+
+    if (questResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Quest not found or does not belong to this character' });
+    }
+
+    // Delete the quest (cascade will handle objectives, progress, etc.)
+    await pool.query('DELETE FROM quests WHERE id = $1', [questId]);
+
+    res.json({
+      success: true,
+      message: 'Quest abandoned'
+    });
+
+  } catch (error) {
+    console.error('[QuestRoutes] Error abandoning quest:', error);
+    res.status(500).json({ error: 'Failed to abandon quest' });
   }
 });
 

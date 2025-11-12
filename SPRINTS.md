@@ -572,6 +572,163 @@ Complete the agent system with Consequence Engine, implement RAG-based consisten
 
 ---
 
+## Sprint 5.5: Emergency Narrative System Fixes (Current - 2-3 Days)
+
+**🚨 EMERGENCY SPRINT** - Critical issues discovered during E2E testing require immediate attention before proceeding to Dynamic Narrative System.
+
+### Current Status
+- ✅ E2E test passing (registration → character → goals → dashboard → logout/login)
+- ❌ Database errors on objective completion (column "xp" doesn't exist)
+- ❌ No UI for daily goal completion (users can't log training rituals)
+- ❌ Narrative quality CRITICAL FAILURE - Every quest is "The Awakening..."
+- ❌ Story Coordinator stuck on 'introduction' theme - no progression
+- ❌ Lorekeeper validation failing (scores 15-75, target is 85%+)
+- ❌ Memory/RAG not being used - no narrative context feeding into generation
+- ❌ Quest Creator temperature too high (0.8, should be 0.3-0.5 for consistency)
+
+### Root Cause Analysis
+Based on PRD.md and Research.md, the issues stem from:
+
+1. **Story Coordinator not tracking narrative progression**
+   - No qualities system to track story beats (tutorial_done, first_quest_done, etc.)
+   - Not using rolling narrative summary for context
+   - Always returns `theme: 'introduction'` regardless of character history
+
+2. **Quest Creator lacks narrative context**
+   - Not retrieving past events via RAG
+   - Generic prompts without character history
+   - Temperature too high (0.8) causing inconsistency (should be 0.3-0.5 per Research.md)
+   - No variety enforcement (all quests titled "The Awakening...")
+
+3. **Lorekeeper has weak validation**
+   - World Bible not properly embedded at both start AND end of prompt
+   - No explicit good/bad examples
+   - Accepting low scores (75%) when target is 85%+
+
+4. **Memory Manager not in the loop**
+   - Episode summaries not being created or stored
+   - Narrative summary not being maintained
+   - No context feeding back into generation
+
+### Emergency Sprint Goals
+
+**Phase 1: Critical Bugs (Day 1 - IMMEDIATE)**
+- [ ] Fix database schema - Check characters table has correct columns
+- [ ] Fix objective completion endpoint - Use correct column names (_xp suffix)
+- [ ] Add Daily Goal Completion UI - Clear "Complete Training Ritual" buttons
+- [ ] Fix JSON parsing - Ensure markdown fence removal works 100%
+- [ ] Add error handling - Graceful failures with user feedback
+
+**Phase 2: Narrative System Core Fixes (Days 1-2 - HIGH PRIORITY)**
+- [ ] Implement Narrative Progression Tracking:
+  - [ ] Add progression qualities to character_qualities table
+  - [ ] Track story beats: tutorial_complete, first_quest_done, first_failure, etc.
+  - [ ] Update Story Coordinator to check progression and select dynamic themes
+
+- [ ] Fix Story Coordinator:
+  - [ ] Retrieve narrative summary from world_state table
+  - [ ] Check character qualities for progression state
+  - [ ] Use dynamic theme selection based on:
+    - Character level (beginner, intermediate, advanced)
+    - Story beats completed
+    - Recent quest outcomes (success, failure, mixed)
+    - Stat focus (which pillar they're training most)
+  - [ ] Themes should include: tutorial, pillar_discovery, npc_introduction, first_challenge, faction_choice, mystery_begins, etc. (NOT just "introduction")
+
+- [ ] Overhaul Quest Creator:
+  - [ ] CRITICAL: Lower temperature from 0.8 to 0.5 (per Research.md consistency guidelines)
+  - [ ] Retrieve top 5 relevant past events via RAG
+  - [ ] Include narrative summary in prompt (500-word rolling summary)
+  - [ ] Add quest variety templates:
+    - Investigation (solve mystery using Clarity)
+    - Rescue (save NPC using Grace/Might)
+    - Escort (protect traveling NPC)
+    - Combat (face threat using chosen stats)
+    - Social (navigate politics using Radiance)
+    - Exploration (discover location)
+    - Training montage (build specific stat)
+  - [ ] Enforce title variety - check last 5 quest titles, reject if too similar
+  - [ ] Add constraint: "Do NOT use generic titles like 'The Awakening' - be specific and varied"
+
+- [ ] Strengthen Lorekeeper:
+  - [ ] Embed World Bible at BOTH start and end of prompt (serial position effect)
+  - [ ] Add explicit validation examples:
+    - Good example: Quest references past NPC interaction, uses established location
+    - Bad example: Quest contradicts previous event, introduces unexplained power
+  - [ ] Raise validation threshold to 85% (currently accepting 75%)
+  - [ ] Add specific rules to check:
+    - NPC personality consistency
+    - Location continuity
+    - Power level appropriateness
+    - Time/causality logic
+    - World physics compliance
+  - [ ] Validation score breakdown: world_rules (40%), character_consistency (30%), plot_logic (20%), creativity (10%)
+
+- [ ] Implement Narrative Summary System:
+  - [ ] Create narrativeSummary.js service
+  - [ ] Initialize summary on character creation
+  - [ ] Update summary after each quest completion:
+    - Compress quest into 2-3 sentences
+    - Preserve key decisions, NPC interactions, unlocked content
+    - Keep total under 500 words
+  - [ ] Store in world_state.narrative_summary_text
+  - [ ] Feed into Story Coordinator and Quest Creator prompts
+
+- [ ] Activate RAG for Context:
+  - [ ] Implement retrieveRelevantContext() in narrativeRAG.js
+  - [ ] Use keyword-based retrieval (vector embeddings in Phase 6)
+  - [ ] Retrieve top 5 relevant past events when generating quests
+  - [ ] Include in Quest Creator prompt as "Recent relevant events:"
+
+**Phase 3: User Experience (Day 2-3 - MEDIUM PRIORITY)**
+- [ ] Dashboard Enhancements:
+  - [ ] Add "Training Rituals" section with clear completion buttons
+  - [ ] Show XP progress bars for each stat
+  - [ ] Add visual feedback for goal completion (animations, celebratory messages)
+  - [ ] Display narrative summary in "Your Story So Far" card
+
+- [ ] Quest Card Improvements:
+  - [ ] Fix objective click handlers (currently failing)
+  - [ ] Show objective completion rewards (+10 XP, +1 STR, etc.)
+  - [ ] Add progress percentage display
+  - [ ] Better visual hierarchy for objective list
+
+- [ ] Error Handling & Feedback:
+  - [ ] Graceful fallbacks when AI generation fails
+  - [ ] User-friendly error messages
+  - [ ] Loading states for all async operations
+  - [ ] Toast notifications for completions
+
+### Deliverables
+- Database schema corrected with proper column names
+- Daily goal completion UI functional and intuitive
+- Story Coordinator using dynamic themes based on progression
+- Quest Creator generating varied, context-aware quests at temperature 0.5
+- Lorekeeper validating at 85%+ pass rate
+- Narrative summary system maintaining rolling 500-word context
+- RAG retrieving relevant past events for quest generation
+- Objective completion working without errors
+- User can complete training rituals and see immediate feedback
+
+### Success Criteria
+✅ **Database errors eliminated** - All objective completions succeed
+✅ **Goal completion UI functional** - Users can log daily training rituals with 1 click
+✅ **No repetitive quest titles** - Last 10 generated quests have unique titles
+✅ **Story Coordinator uses varied themes** - At least 5 different themes used across 10 characters
+✅ **Lorekeeper validation ≥85%** - Validation pass rate meets target
+✅ **Narrative summary maintained** - Every character has rolling summary updated on quest completion
+✅ **RAG retrieving context** - Quest generation includes top 5 relevant past events
+✅ **Temperature lowered to 0.5** - Quest Creator using research-backed temperature
+✅ **User can complete full loop** - Register → Create Character → Set Goals → Generate Quest → Complete Training → See Progress → Complete Quest → Get Reward
+✅ **E2E test still passing** - All fixes don't break existing functionality
+
+### Sprint Gate
+**Must Pass:** Database errors fixed, goal completion UI working, Lorekeeper validation ≥85%, quest variety demonstrated (no "Awakening" repetition), narrative summary system functional, E2E test passing
+
+**⚠️ HARD GATE:** Cannot proceed to Sprint 6 (Dynamic Narrative System) without fixing these fundamental narrative coherence issues. The research-informed architecture must be properly implemented before adding complexity.
+
+---
+
 ## Sprint 6: Dynamic Narrative System Implementation (Week 11 - 7 Days Pre-Beta)
 
 **⚠️ CRITICAL SPRINT:** This sprint implements the PRD Addendum "Dynamic Narrative System" - transforming from linear quest system to MMO-style living world with player agency.
