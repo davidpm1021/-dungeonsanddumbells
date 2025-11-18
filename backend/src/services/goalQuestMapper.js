@@ -265,12 +265,12 @@ Their goals: ${statGoals.map(g => `"${g.goal_name}" (${g.goal_type})`).join(', '
 Generate a character arc quest that:
 1. Uses their existing goals as objectives (don't create new requirements)
 2. Provides narrative framing for why these activities matter
-3. Shows how their training affects the Pillar of ${getStatPillar(stat)}
+3. Shows how their training strengthens their ${stat} attribute
 4. Creates multi-stage progression (partial rewards for incremental progress)
 
 Example narrative framing:
 If player has goal "Lift weights 3x/week" for STR:
-"Elder Thorne notices your dedication to physical training. 'The Pillar of Might responds to those who push their limits,' he says. Continue your strength training - each session reinforces the Pillar's foundation."
+"Your dedication to physical training shows results. Each session builds upon the last, strengthening your body and spirit. Continue your strength training - consistency is the key to mastery."
         `
       });
 
@@ -300,11 +300,11 @@ This demonstrates the Balance philosophy!
 Generate a main story quest that:
 1. Celebrates their holistic approach
 2. Uses goals from different stats as objectives
-3. Advances the main plot (Pillar restoration requires balance)
+3. Advances the main plot (balance is key to true power)
 4. Rewards versatility
 
 Example:
-"Elder Thorne is impressed by your balanced dedication. 'Most adventurers focus on one Pillar,' he explains. 'But the ancient Balancekeeper Thera knew the secret: harmony requires all six.' Your varied training has caught the attention of the Pillars themselves."
+"Your balanced dedication sets you apart. Most adventurers focus on a single aspect of growth, but you understand the secret: true power comes from harmony across all attributes. Your varied training demonstrates wisdom beyond your years."
         `
       });
 
@@ -336,22 +336,22 @@ function createMultiStageObjectives(userGoals) {
       {
         stage_number: 1,
         description: `Begin your practice: Complete ${goal.goal_name} once`,
-        narrative_framing: `Take the first step. The Pillar notices your dedication.`,
+        narrative_framing: `Take the first step. Your dedication will be noticed.`,
         goal_id: goal.id,
         stat_focus: goal.stat_mapping,
         target_value: 1,
-        reward_narrative: "Every journey begins with a single step. The Pillar acknowledges your commitment.",
+        reward_narrative: "Every journey begins with a single step. Your commitment is acknowledged.",
         current_progress: 0,
         completed: false
       },
       {
         stage_number: 2,
         description: `Build momentum: Complete ${goal.goal_name} ${Math.ceil(targetValue / 2)} times`,
-        narrative_framing: `Consistency is key. The Pillar responds to regular practice.`,
+        narrative_framing: `Consistency is key. Your power responds to regular practice.`,
         goal_id: goal.id,
         stat_focus: goal.stat_mapping,
         target_value: Math.ceil(targetValue / 2),
-        reward_narrative: "Your dedication strengthens. The Pillar's cracks slow their spread.",
+        reward_narrative: "Your dedication strengthens. Progress becomes visible.",
         current_progress: 0,
         completed: false
       },
@@ -362,7 +362,7 @@ function createMultiStageObjectives(userGoals) {
         goal_id: goal.id,
         stat_focus: goal.stat_mapping,
         target_value: targetValue,
-        reward_narrative: "True mastery achieved. The Pillar glows with approval and reveals its secrets.",
+        reward_narrative: "True mastery achieved. Your growth reveals new possibilities.",
         current_progress: 0,
         completed: false
       }
@@ -378,22 +378,22 @@ function createMultiStageObjectives(userGoals) {
 }
 
 /**
- * Get Pillar name for a stat
+ * Get stat name
  *
  * @param {string} stat - Stat code (STR, INT, etc.)
- * @returns {string} Pillar name
+ * @returns {string} Full stat name
  */
 function getStatPillar(stat) {
-  const pillars = {
-    STR: 'Might',
-    DEX: 'Grace',
-    CON: 'Endurance',
-    INT: 'Clarity',
-    WIS: 'Serenity',
-    CHA: 'Radiance'
+  const statNames = {
+    STR: 'Strength',
+    DEX: 'Dexterity',
+    CON: 'Constitution',
+    INT: 'Intelligence',
+    WIS: 'Wisdom',
+    CHA: 'Charisma'
   };
 
-  return pillars[stat] || 'Balance';
+  return statNames[stat] || 'Balance';
 }
 
 module.exports = {

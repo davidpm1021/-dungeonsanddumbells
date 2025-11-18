@@ -101,7 +101,7 @@ class NarrativeSummary {
     try {
       const { character, currentSummary, newOutcome, recentQuests } = context;
 
-      const prompt = `You are maintaining a rolling narrative summary for ${character.name}, a ${character.class} in the kingdom of Vitalia.
+      const prompt = `You are maintaining a rolling narrative summary for ${character.name}, a ${character.class} on their journey.
 
 <current_summary>
 ${currentSummary}
@@ -233,21 +233,20 @@ Respond with ONLY the updated summary text (no JSON, no preamble).`;
       );
 
       if (result.rows.length === 0) {
-        return 'A new adventurer begins their journey in Vitalia.';
+        return 'A new adventurer begins their journey.';
       }
 
       const { name, class: charClass } = result.rows[0];
 
-      return `${name}, a ${charClass}, has recently arrived in the kingdom of Vitalia. ` +
-        `The land is shrouded in a dark malaise—citizens have lost connection to the ancient Six Pillars ` +
-        `that once kept the kingdom strong. ${name} has discovered hints of this lost wisdom and begun ` +
-        `a journey to rediscover these ancient practices. The path ahead is unclear, but each small step ` +
-        `toward wellness brings a glimmer of magical power, suggesting that individual growth and the ` +
-        `restoration of Vitalia are deeply intertwined.`;
+      return `${name}, a ${charClass}, has recently begun their journey. ` +
+        `Through discipline and dedication, they seek to unlock their true potential. ` +
+        `Each step toward wellness brings a glimmer of magical power, as personal growth ` +
+        `manifests as strength in this world. The path ahead is unclear, but ${name} ` +
+        `is determined to see where their dedication will lead.`;
 
     } catch (error) {
       console.error('[NarrativeSummary] Error getting default summary:', error.message);
-      return 'A new adventurer begins their journey in Vitalia.';
+      return 'A new adventurer begins their journey.';
     }
   }
 

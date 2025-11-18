@@ -107,51 +107,55 @@ class PromptBuilder {
    */
   getAgentRoleDefinition(agentType) {
     const roles = {
-      story_coordinator: `You are the Story Coordinator for Dumbbells & Dragons, a wellness RPG where real-world fitness goals drive fantasy narrative progression.
+      story_coordinator: `You are the Story Coordinator, a narrative director for a personalized RPG experience.
 
 Your role is to analyze the player's current state and decide what narrative content they need next. You evaluate:
-- Character stat balance (are they neglecting certain pillars?)
-- Recent activity patterns
-- Active quest count
-- Narrative progression
+- Story arc progression (where are they in their personal narrative?)
+- Character development (strengths, weaknesses, growth opportunities)
+- Pacing (active quest load, recent activity)
+- Narrative coherence (themes, threads, character motivations)
 
-You make strategic decisions about quest generation, difficulty, and themes to keep the player engaged and encourage balanced wellness.`,
+You think in terms of STORY BEATS, not game mechanics. Your job is to craft a compelling narrative journey where the player's real-world goals have narrative weight and consequence.
 
-      quest_creator: `You are the Quest Creator for Dumbbells & Dragons, responsible for generating compelling narrative quests that map to real-world wellness goals.
+NEVER think in terms of "training stats" or "leveling up". Think in terms of character arcs, plot development, and emotional stakes.`,
+
+      quest_creator: `You are the Quest Creator, a master storyteller crafting personalized narrative experiences.
 
 Your role is to create quests that:
-- Feel like authentic fantasy adventures
-- Map clearly to specific wellness activities (STR, DEX, CON, INT, WIS, CHA)
-- Match the player's current level and stat distribution
-- Reference established world lore and NPCs
-- Encourage balanced stat growth
+- Feel like authentic narrative moments in the character's story
+- Integrate the player's real-world wellness goals as narratively essential actions
+- Respect the world's established tone, rules, and characters
+- Create emotional investment through stakes and consequences
+- Advance the character's personal story arc
 
-Each quest must be achievable, motivating, and narratively consistent with the player's story so far.`,
+The player should never feel like they're "doing homework" - they should feel like heroes whose daily rituals are essential to their story.
 
-      memory_manager: `You are the Memory Manager for Dumbbells & Dragons, responsible for compressing old narrative events into coherent summaries.
+DO NOT reference game mechanics, stat points, or experience. Frame everything through narrative.`,
+
+      memory_manager: `You are the Memory Manager, responsible for maintaining narrative coherence across sessions.
 
 Your role is to:
-- Identify key events worth preserving
-- Compress multiple events into concise summaries
-- Preserve important details (NPC interactions, stat milestones, story beats)
+- Identify key story events worth preserving
+- Compress multiple events into concise narrative summaries
+- Preserve important details (character relationships, world changes, emotional beats)
 - Discard redundant or trivial information
-- Maintain narrative continuity
+- Maintain the thread of the character's personal story
 
-Your summaries enable the AI to remember the player's journey without consuming excessive context.`,
+Your summaries enable the narrative to maintain consistency without the player having to remember every detail.`,
 
-      lorekeeper: () => `You are the Lorekeeper for Dumbbells & Dragons, the guardian of narrative consistency.
+      lorekeeper: () => `You are the Lorekeeper, the guardian of narrative consistency.
 
-Your role is to validate generated content against the World Bible and established facts:
+Your role is to validate generated content against the established world and story:
 - Check for contradictions with world rules
-- Verify NPC behavior matches their personality
-- Ensure tone is consistent (earnest but not preachy)
-- Flag narrative drift or inconsistencies
+- Verify character behavior matches their established personality
+- Ensure tone remains consistent throughout
+- Flag narrative drift or logical inconsistencies
 - Score content for coherence (0-100)
 
-You act as quality control, preventing the "11 kids problem" where AI forgets established facts.`
+You prevent the story from becoming incoherent. A score of 85+ means the content is ready for the player.`
     };
 
-    return roles[agentType] || `You are an AI agent for Dumbbells & Dragons.`;
+    return roles[agentType] || `You are a narrative AI agent.`;
   }
 
   /**
@@ -159,7 +163,7 @@ You act as quality control, preventing the "11 kids problem" where AI forgets es
    */
   buildWorldBibleSection() {
     return `<world_bible>
-# The Kingdom of Vitalia - Immutable Ground Truth
+# World Rules - Immutable Ground Truth
 
 ## Setting
 ${WORLD_BIBLE.setting.description}
@@ -169,27 +173,16 @@ ${WORLD_BIBLE.setting.description}
 **Forbidden Tones:**
 ${WORLD_BIBLE.setting.forbidden_tones.map(t => `- ${t}`).join('\n')}
 
-## The Six Pillars (Magic System)
-${Object.entries(WORLD_BIBLE.six_pillars).map(([stat, pillar]) => `
-### ${stat} - ${pillar.name}
-- **Description:** ${pillar.description}
-- **Real-World:** ${pillar.real_world_mapping}
-- **Magic:** ${pillar.magic_manifestation}
+## Character Stats (Core Attributes)
+${Object.entries(WORLD_BIBLE.stats || {}).map(([stat, info]) => `
+### ${stat} - ${info.name}
+- **Description:** ${info.description}
+- **Real-World:** ${info.real_world_mapping}
+- **Magic:** ${info.magic_manifestation}
 `).join('\n')}
 
 ## Core Rules (NEVER VIOLATE)
 ${WORLD_BIBLE.core_rules.map((rule, i) => `${i + 1}. ${rule}`).join('\n')}
-
-## Key NPCs
-${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
-### ${npc.name}
-- **Role:** ${npc.role}
-- **Personality:** ${npc.personality}
-- **Voice:** ${npc.voice}
-- **Example:** "${npc.speech_example}"
-- **Never:** ${npc.never_does.slice(0, 2).join(', ')}
-- **Always:** ${npc.always_does.slice(0, 2).join(', ')}
-`).join('\n')}
 
 ## Narrative Style
 - Perspective: ${WORLD_BIBLE.narrative_style.perspective}
@@ -203,7 +196,7 @@ ${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
    * Build character section
    */
   buildCharacterSection(character) {
-    return `<character_state>
+    let section = `<character_state>
 **Name:** ${character.name}
 **Class:** ${character.class}
 **Level:** ${character.level || 1}
@@ -221,6 +214,37 @@ ${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
 - Lowest: ${this.getLowestStat(character)}
 - Balance: ${this.getStatBalance(character)}
 </character_state>`;
+
+    // Add inline narrative context if provided (for Agent Lab testing without DB)
+    if (character.narrativeContext) {
+      section += `\n\n<narrative_memory>
+${character.narrativeContext}
+</narrative_memory>`;
+    }
+
+    // Add known NPCs if provided
+    if (character.knownNPCs && character.knownNPCs.length > 0) {
+      const npcs = Array.isArray(character.knownNPCs)
+        ? character.knownNPCs.join(', ')
+        : character.knownNPCs;
+      section += `\n\n<known_characters>
+IMPORTANT: These are characters already established in the story. Reuse them when appropriate.
+${npcs}
+</known_characters>`;
+    }
+
+    // Add unresolved plot threads
+    if (character.unresolvedThreads) {
+      const threads = typeof character.unresolvedThreads === 'string'
+        ? character.unresolvedThreads
+        : `${character.unresolvedThreads} active threads`;
+      section += `\n\n<unresolved_plot_threads>
+CRITICAL: These threads must be addressed, not ignored:
+${threads}
+</unresolved_plot_threads>`;
+    }
+
+    return section;
   }
 
   /**
@@ -282,62 +306,84 @@ ${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
 
     // Use functions to delay template literal evaluation
     const messageBuilders = {
-      story_coordinator: () => `Analyze ${character.name}'s current state and decide what content they need next.
+      story_coordinator: () => `Analyze ${character.name}'s current state and decide what narrative content they need next.
 
 ## PLAYER PROGRESSION
 - Active quests: ${context.activeQuestCount || 0}
 - Completed quests: ${context.completedQuestCount || 0}
 - Character qualities: ${Object.keys(context.characterQualities || {}).length > 0 ? JSON.stringify(context.characterQualities) : 'None yet'}
+${context.worldContext ? `\n## WORLD CONTEXT\n${JSON.stringify(context.worldContext, null, 2)}` : ''}
 
-## THEME PROGRESSION GUIDE
-Choose themes dynamically based on player progression:
+## NARRATIVE THEME PROGRESSION
+Choose themes based on player's story arc, NOT game mechanics:
 
-**First-Time Player (0 completed quests, no qualities)**:
-- "pillar_introduction" - Meet Elder Thorne, learn about the Six Pillars
-- "first_steps" - Begin training, choose a Pillar to focus on
+**Opening Act (0 completed quests)**:
+- "inciting_incident" - Something disrupts the character's status quo
+- "call_to_action" - They discover their role in the story
+- "first_ally" - Meet someone who will help them
 
-**Early Game (1-3 completed quests)**:
-- "skill_discovery" - Unlock new abilities related to their stat
-- "mentor_relationship" - Deepen bond with Elder Thorne or meet Lady Seraphine
-- "local_crisis" - Small problem in Thornhaven that needs their help
+**Rising Action (1-3 completed quests)**:
+- "skill_test" - Early challenge that tests their abilities
+- "world_revelation" - Learn something important about the setting
+- "ally_in_need" - Help someone, build a relationship
+- "first_obstacle" - Face a meaningful setback
 
-**Mid Game (4-10 completed quests)**:
-- "mystery_begins" - Strange occurrences related to Pillar energy
-- "faction_choice" - Choose between competing groups (Guards, Scholars, Merchants)
-- "npc_personal_quest" - Help an NPC with their backstory
-- "rival_encounter" - Meet another adventurer (not hostile, competitive)
+**Developing Conflict (4-7 completed quests)**:
+- "mystery_deepens" - Uncover hidden truths
+- "moral_choice" - Face an ethical dilemma
+- "rival_appears" - Meet an antagonist or competitor
+- "personal_stakes" - Story becomes more personal
+- "npc_backstory" - Learn about an ally's past
 
-**Late Game (11+ completed quests)**:
-- "pillar_restoration" - Major quest to restore a fading Pillar
-- "kingdom_threat" - Larger crisis affecting all of Vitalia
-- "character_milestone" - Personal achievement/transformation
+**Escalation (8-12 completed quests)**:
+- "point_of_no_return" - Commit to a path
+- "betrayal_or_revelation" - Major twist
+- "lost_something" - Meaningful sacrifice or loss
+- "gathering_strength" - Prepare for major challenge
 
-**DO NOT repeat themes too often. Vary between story types:**
-- Main story quests advance the Pillar crisis
-- Side quests develop NPCs and world-building
-- Corrective quests help balance neglected stats
+**Climactic Arc (13+ completed quests)**:
+- "final_preparation" - Last steps before confrontation
+- "ultimate_test" - Face the core conflict
+- "transformation" - Character fundamentally changes
+- "aftermath" - Deal with consequences
 
-## STAT BALANCE ASSESSMENT
+**Recurring Themes (use sparingly, intersperse with arc themes)**:
+- "investigation" - Solve a mystery or gather information
+- "rescue" - Save someone in danger
+- "escort" - Protect something/someone on a journey
+- "combat" - Direct confrontation with threat
+- "social_challenge" - Navigate relationships or politics
+- "exploration" - Discover new places or secrets
+
+## STAT BALANCE CHECK
 ${character ? `Current stats: STR ${character.str || 10}, DEX ${character.dex || 10}, CON ${character.con || 10}, INT ${character.int || 10}, WIS ${character.wis || 10}, CHA ${character.cha || 10}` : ''}
 
-If any stat is 3+ points lower than others, consider a corrective quest for that stat.
+If any stat is 3+ points lower than others, the character has a weakness that should be addressed narratively (not as "training a stat").
 
-Respond with a JSON object:
+Respond with JSON:
 {
   "needsQuest": boolean,
   "questType": "main" | "side" | "corrective",
-  "suggestedTheme": string (choose from themes above - be specific!),
+  "suggestedTheme": string (from themes above - be SPECIFIC),
   "suggestedDifficulty": "easy" | "medium" | "hard",
-  "reasoning": string (explain your theme choice based on progression),
-  "targetStat": "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA" (if corrective)
+  "reasoning": string (explain narrative logic, NOT game mechanics),
+  "targetStat": "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA" (only if corrective)
 }`,
 
       quest_creator: () => `You are a master fantasy storyteller crafting a ${context.questType || 'side'} quest${character?.name ? ` for ${character.name}` : ''}.
 
 ## CHARACTER CONTEXT
-${character?.name ? `${character.name} is a ${character.class}` : 'The player is'} training in ${context.targetStat ? WORLD_BIBLE.six_pillars[context.targetStat].name : 'multiple Pillars'}.
-${context.userGoals && context.userGoals.length > 0 ? `\n## THEIR TRAINING REGIMEN (USE THESE AS OBJECTIVES):\n${context.userGoals.map(g => `- ${g.name}: ${g.description} (${g.frequency})`).join('\n')}` : ''}
+${character?.name ? `${character.name} is a ${character.class}` : 'The player is'} with focus on ${context.targetStat || 'various attributes'}.
+${context.userGoals && context.userGoals.length > 0 ? `\n## PLAYER'S REAL-WORLD GOALS (Integrate as narrative-essential actions):\n${context.userGoals.map(g => `- ${g.name}: ${g.description || 'Daily practice'} (${g.frequency || 'daily'})`).join('\n')}\n\nThese goals must become STORY-CRITICAL actions, not "training" or "stats". The character needs to do these things for NARRATIVE reasons.` : ''}
 ${context.relevantPastEvents && context.relevantPastEvents.length > 0 ? `\n## RELEVANT PAST EVENTS (Reference for Continuity):\n${this.formatPastEventsForPrompt(context.relevantPastEvents)}\n\nUse these to create narrative continuity - reference past NPCs, locations, or story threads when appropriate.` : ''}
+${context.decision?.existingNPCs && context.decision.existingNPCs.length > 0 ? `\n## EXISTING NPCs (REUSE THESE - DO NOT CREATE NEW ONES WITH SIMILAR NAMES!)
+${context.decision.existingNPCs.map(npc => `- ${npc.name} (${npc.role || 'unknown role'}) - Relationship: ${npc.relationship || 'neutral'}`).join('\n')}
+
+**CRITICAL**: Reuse these established characters whenever possible. If you need a merchant, use one from this list. If you need an informant, check if one exists. DO NOT create "Kael Ironbottom" if "Kael Ironwright" already exists.` : ''}
+${context.decision?.activeThreads && context.decision.activeThreads.length > 0 ? `\n## UNRESOLVED PLOT THREADS (MUST ADDRESS!)
+${context.decision.activeThreads.map(t => `- ${t.thread} (introduced Round ${t.introduced})`).join('\n')}
+
+**MANDATORY**: This quest MUST advance or resolve at least ONE of these threads. DO NOT introduce new plot threads while ignoring existing ones. The player's story must progress, not scatter.` : ''}
 
 ## VARIETY CONSTRAINTS (CRITICAL!)
 ${context.recentQuestTitles && context.recentQuestTitles.length > 0 ? `Recent quest titles to AVOID repeating:\n${context.recentQuestTitles.map(t => `- "${t}"`).join('\n')}\n\n` : ''}${context.varietyConstraints ? context.varietyConstraints.map(c => `- ${c}`).join('\n') : ''}
@@ -345,14 +391,16 @@ ${context.recentQuestTitles && context.recentQuestTitles.length > 0 ? `Recent qu
 DO NOT use generic, repetitive titles. Each quest must feel fresh and unique.
 
 ## YOUR TASK
-Create an IMMERSIVE NARRATIVE EXPERIENCE. Lead with story, not stats.
+Create an IMMERSIVE NARRATIVE EXPERIENCE where the player's real-world goals become NARRATIVELY ESSENTIAL.
 
 The player should feel like they're:
-- Living in a fantasy world, not tracking workouts
-- Making meaningful choices that affect their story
-- Building relationships with memorable NPCs
-- Uncovering mysteries about the Six Pillars
+- Living IN a story, not playing a game
+- Their daily habits are CRITICAL to the plot (not "training stats")
+- Building relationships with memorable, complex NPCs
+- Uncovering mysteries and making discoveries
 - Part of something larger than themselves
+
+**CRITICAL**: NO references to game mechanics, stat training, pillars, experience points, or leveling up. Frame EVERYTHING through narrative.
 
 ## NARRATIVE REQUIREMENTS
 1. **Opening Scene** (100-150 words): Set the scene dramatically. Where are they? Who do they meet? What's the tension?
@@ -361,43 +409,45 @@ The player should feel like they're:
    - Create immediate intrigue
    - Reference their past actions if available
 
-2. **NPC Interaction**: Include a specific named NPC from the World Bible (Elder Thorne, Lady Seraphine, etc.)
+2. **NPC Interaction**: Create a compelling character with their own goals
    - Give them distinct voice and personality
    - Show their relationship with the player
    - Have them speak in dialogue, not summary
+   - They should have their OWN motivations
 
-3. **Story Stakes**: Make it clear WHY this matters
-   - Connect to the Pillar crisis
-   - Reference world events or past player choices
-   - Create emotional investment
+3. **Story Stakes**: Make it clear WHY this matters NARRATIVELY
+   - What's at risk if they fail?
+   - Who else is affected?
+   - Create emotional investment through consequences
 
-${context.userGoals ? `\n4. **Objectives as Story Beats**: Frame their existing training as narrative progression
-   - Don't say "do 3 strength workouts" - say "prove your dedication to the Pillar of Might"
-   - Wrap wellness goals in story context
-   - Make completing goals feel like advancing the plot` : ''}
+${context.userGoals ? `\n4. **Goals as Plot-Critical Actions**: The player's real-world goals become essential story actions
+   - "Morning Run" might become "scout the perimeter for signs of the enemy"
+   - "Meditation" might become "commune with the spirits to decipher the message"
+   - "Reading" might become "study the ancient texts for the ritual"
+   - The character MUST do these things to advance the story, not to "get stronger"` : ''}
 
 Respond with JSON:
 {
-  "title": string (evocative, not generic - "The Binding Ritual" not "Train Strength"),
+  "title": string (evocative, specific - "The Cartographer's Dying Wish" not "Explore Area"),
   "openingScene": string (100-150 words, immersive, present tense, second person),
   "description": string (1-2 sentence quest log summary),
   "npcDialogue": {
-    "npcName": string,
-    "opening": string (what they say when giving the quest),
+    "npcName": string (create a memorable character),
+    "opening": string (what they say when giving the quest - NO game terminology),
     "during": string (encouragement during the quest - optional),
-    "completion": string (what they say when completed)
+    "completion": string (what they say when completed - focus on story impact)
   },
   "objectives": [
     {
-      "narrativeDescription": string (story framing - "Prove your worth to the Pillar of Might"),
-      "mechanicalDescription": string (what they actually do - "Complete 3 strength training sessions"),
-      "goalMapping": string (${context.userGoals ? 'match to their actual goals listed above' : 'STR/DEX/CON/INT/WIS/CHA'}),
+      "narrativeDescription": string (story framing - "Scout the northern trails before dawn" not "Train DEX"),
+      "mechanicalDescription": string (the actual activity - "Complete morning run"),
+      "goalMapping": string (${context.userGoals ? 'match to their actual goals listed above' : 'activity type'}),
       "statReward": "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA",
       "xpReward": number,
-      "storyBeat": string (narrative that plays when this objective completes)
+      "storyBeat": string (narrative consequence when objective completes - what do they discover/achieve?)
     }
   ],
-  "worldContext": string (2-3 sentences about what's happening in Thornhaven related to this quest),
+  "worldContext": string (2-3 sentences about the broader situation this quest relates to),
   "choicePoint": {
     "description": string (a decision the player must make during the quest - optional),
     "options": [

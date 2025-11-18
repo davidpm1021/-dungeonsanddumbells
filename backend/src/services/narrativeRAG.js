@@ -511,6 +511,123 @@ class NarrativeRAG {
 
     return true;
   }
+
+  /**
+   * Retrieve context for Narrative Director orchestration
+   * Unified interface that combines multiple retrieval strategies
+   *
+   * @param {number} characterId - Character ID
+   * @param {string} query - Query text for semantic search
+   * @param {Object} options - Retrieval options
+   * @returns {Array} - Retrieved context items
+   */
+  async retrieveContext(characterId, query, options = {}) {
+    const {
+      k = 5,
+      includeEpisodes = true,
+      includeQuests = true,
+      weightRecency = 0.3,
+      weightRelevance = 0.5,
+      weightImportance = 0.2
+    } = options;
+
+    console.log(`[NarrativeRAG] Retrieving context for query: "${query.substring(0, 50)}..."`);
+
+    try {
+      const results = [];
+
+      // 1. Retrieve relevant events via hybrid search
+      const relevantEvents = await this.retrieveRelevantEvents(characterId, query, k);
+      results.push(...relevantEvents.map(event => ({
+        type: 'event',
+        content: event.event_description || event.description || event.content,
+        timestamp: event.created_at,
+        relevanceScore: event.similarity || 0.5,
+        ...event
+      })));
+
+      // 2. Include episode summaries if requested
+      if (includeEpisodes) {
+        try {
+          const episodes = await this.getEpisodeSummaries(characterId, 3);
+          results.push(...episodes.map(ep => ({
+            type: 'episode',
+            content: ep.summary_text || ep.summaryText || JSON.stringify(ep),
+            timestamp: ep.period?.end || ep.created_at,
+            relevanceScore: 0.6,
+            ...ep
+          })));
+        } catch (e) {
+          // Episode retrieval failed, continue
+        }
+      }
+
+      // 3. Include recent quests if requested
+      if (includeQuests) {
+        try {
+          const recentQuests = await this.getRecentQuests(characterId, 3);
+          results.push(...recentQuests.map(q => ({
+            type: 'quest',
+            content: `Quest: ${q.title}. ${q.description || ''}`,
+            timestamp: q.created_at,
+            relevanceScore: 0.5,
+            ...q
+          })));
+        } catch (e) {
+          // Quest retrieval failed, continue
+        }
+      }
+
+      // 4. Score and rank results
+      const scoredResults = results.map(item => {
+        const recencyScore = this.calculateRecencyScore(item.timestamp);
+        const relevance = item.relevanceScore || 0.5;
+        const importance = item.importance_score || 0.5;
+
+        const compositeScore =
+          weightRecency * recencyScore +
+          weightRelevance * relevance +
+          weightImportance * importance;
+
+        return { ...item, compositeScore };
+      });
+
+      scoredResults.sort((a, b) => b.compositeScore - a.compositeScore);
+      const topResults = scoredResults.slice(0, k);
+
+      console.log(`[NarrativeRAG] Retrieved ${topResults.length} context items`);
+      return topResults;
+
+    } catch (error) {
+      console.error('[NarrativeRAG] Context retrieval error:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate recency score (exponential decay)
+   */
+  calculateRecencyScore(timestamp) {
+    if (!timestamp) return 0.5;
+    const ageInDays = (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60 * 24);
+    return Math.exp(-ageInDays / 30);
+  }
+
+  /**
+   * Get episode summaries from world_state
+   */
+  async getEpisodeSummaries(characterId, limit = 3) {
+    try {
+      const result = await pool.query(
+        `SELECT episode_summaries FROM world_state WHERE character_id = $1`,
+        [characterId]
+      );
+      if (!result.rows[0] || !result.rows[0].episode_summaries) return [];
+      return result.rows[0].episode_summaries.slice(-limit);
+    } catch (error) {
+      return [];
+    }
+  }
 }
 
 module.exports = new NarrativeRAG();

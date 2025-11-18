@@ -19,9 +19,9 @@ export default function CharacterCreation() {
       title: 'The Champion',
       subtitle: 'Path of Physical Might',
       icon: '⚔️',
-      description: 'You are drawn to the ancient Pillars of Might and Endurance. Your strength will shape kingdoms, your resilience will weather any storm. Through discipline and physical mastery, you will become an unstoppable force.',
+      description: 'You are drawn to physical power and endurance. Your strength will shape your destiny, your resilience will weather any storm. Through discipline and physical mastery, you will become an unstoppable force.',
       focus: 'Strength & Constitution',
-      narrative: 'Masters of the Iron Temple who forge their bodies into weapons of legend.',
+      narrative: 'Warriors who forge their bodies into weapons of legend.',
       gradient: 'from-red-500 via-orange-500 to-amber-500',
       glow: 'shadow-red-500/50',
     },
@@ -29,9 +29,9 @@ export default function CharacterCreation() {
       title: 'The Scholar',
       subtitle: 'Path of Mental Clarity',
       icon: '📚',
-      description: 'You seek wisdom from the Pillars of Clarity and Serenity. Knowledge is your weapon, meditation your shield. Through learning and mindfulness, you will unlock the mysteries of Vitalia.',
+      description: 'You seek knowledge and inner peace. Knowledge is your weapon, meditation your shield. Through learning and mindfulness, you will unlock hidden mysteries.',
       focus: 'Intelligence & Wisdom',
-      narrative: 'Keepers of the Forgotten Library who wield knowledge as others wield steel.',
+      narrative: 'Scholars who wield knowledge as others wield steel.',
       gradient: 'from-blue-500 via-purple-500 to-violet-500',
       glow: 'shadow-purple-500/50',
     },
@@ -39,7 +39,7 @@ export default function CharacterCreation() {
       title: 'The Shadow',
       subtitle: 'Path of Grace & Charm',
       icon: '🗡️',
-      description: 'You dance between the Pillars of Grace and Radiance. Agility is your art, charisma your greatest asset. Through finesse and social mastery, you will turn every encounter to your advantage.',
+      description: 'You excel in agility and charm. Agility is your art, charisma your greatest asset. Through finesse and social mastery, you will turn every encounter to your advantage.',
       focus: 'Dexterity & Charisma',
       narrative: 'Silver-tongued wanderers who move like whispers and inspire like legends.',
       gradient: 'from-green-500 via-emerald-500 to-teal-500',
@@ -100,7 +100,7 @@ export default function CharacterCreation() {
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-amber-200 via-purple-200 to-blue-200 bg-clip-text text-transparent animate-fade-in delay-100">
-              Welcome to Vitalia
+              Begin Your Journey
             </h1>
 
             <div className="max-w-3xl mx-auto space-y-4 text-gray-300 text-lg leading-relaxed animate-fade-in delay-200">
@@ -109,11 +109,11 @@ export default function CharacterCreation() {
               </p>
 
               <p>
-                The Kingdom of Vitalia stands at the edge of twilight. Once, the Six Ancient Pillars—<span className="text-red-300 font-semibold">Might</span>, <span className="text-green-300 font-semibold">Grace</span>, <span className="text-yellow-300 font-semibold">Endurance</span>, <span className="text-blue-300 font-semibold">Clarity</span>, <span className="text-purple-300 font-semibold">Serenity</span>, and <span className="text-pink-300 font-semibold">Radiance</span>—stood brilliant and whole, channels of raw magical energy flowing through every citizen.
+                Your journey of growth begins. Six core attributes—<span className="text-red-300 font-semibold">Strength</span>, <span className="text-green-300 font-semibold">Dexterity</span>, <span className="text-yellow-300 font-semibold">Constitution</span>, <span className="text-blue-300 font-semibold">Intelligence</span>, <span className="text-purple-300 font-semibold">Wisdom</span>, and <span className="text-pink-300 font-semibold">Charisma</span>—await your dedication.
               </p>
 
               <p>
-                But the pillars have dimmed. Their power fades with each passing season. The people grow weary, their potential locked away. Elder Thorne, last of the Pillar Keepers, sends word across the realm: <span className="text-amber-300 font-semibold italic">"Only those who walk the ancient paths can rekindle what was lost."</span>
+                Through discipline and consistent practice, you will unlock your true potential. Each step forward on your wellness journey manifests as magical power in this world. <span className="text-amber-300 font-semibold italic">Only those who walk the path of dedication can achieve greatness.</span>
               </p>
 
               <p className="text-xl text-white/90 font-medium pt-2">
@@ -144,7 +144,7 @@ export default function CharacterCreation() {
                 autoFocus
               />
               <p className="text-xs text-gray-400 mt-2 italic">
-                Choose a name worthy of legend. This is how the kingdom will remember you.
+                Choose a name worthy of legend. This is how you will be remembered.
               </p>
             </div>
 
@@ -194,39 +194,39 @@ export default function CharacterCreation() {
               </div>
             </div>
 
-            {/* The Six Pillars Preview */}
+            {/* Starting Stats Preview */}
             <div className="mb-8 glass-card p-6 border border-purple-500/20 bg-purple-500/5">
               <h4 className="text-sm font-bold text-purple-200 mb-4 tracking-wide uppercase">
-                The Six Pillars Await
+                Your Starting Attributes
               </h4>
               <p className="text-sm text-gray-300 mb-4 leading-relaxed">
-                All paths begin at the same point. Your connection to each Pillar starts at <span className="text-white font-semibold">10</span>.
+                All paths begin at the same point. Each attribute starts at <span className="text-white font-semibold">10</span>.
                 Through your choices and dedication, you will strengthen these bonds, unlocking new powers and shaping your legend.
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-str px-2 py-1 rounded text-sm font-bold">STR 10</span>
-                  <span className="text-xs text-gray-400">Might</span>
+                  <span className="text-xs text-gray-400">Strength</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-dex px-2 py-1 rounded text-sm font-bold">DEX 10</span>
-                  <span className="text-xs text-gray-400">Grace</span>
+                  <span className="text-xs text-gray-400">Dexterity</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-con px-2 py-1 rounded text-sm font-bold">CON 10</span>
-                  <span className="text-xs text-gray-400">Endurance</span>
+                  <span className="text-xs text-gray-400">Constitution</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-int px-2 py-1 rounded text-sm font-bold">INT 10</span>
-                  <span className="text-xs text-gray-400">Clarity</span>
+                  <span className="text-xs text-gray-400">Intelligence</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-wis px-2 py-1 rounded text-sm font-bold">WIS 10</span>
-                  <span className="text-xs text-gray-400">Serenity</span>
+                  <span className="text-xs text-gray-400">Wisdom</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                   <span className="stat-badge-cha px-2 py-1 rounded text-sm font-bold">CHA 10</span>
-                  <span className="text-xs text-gray-400">Radiance</span>
+                  <span className="text-xs text-gray-400">Charisma</span>
                 </div>
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function CharacterCreation() {
             </button>
 
             <p className="text-center text-xs text-gray-500 mt-4 italic">
-              Elder Thorne awaits your arrival at the Pillar Grove...
+              Your destiny awaits...
             </p>
           </form>
 

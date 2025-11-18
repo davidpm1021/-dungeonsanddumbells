@@ -152,26 +152,26 @@ async function generatePresetEvent() {
   // Pool of preset events for beta
   const presetEvents = [
     {
-      eventName: 'Pillar Tremors',
-      eventDescription: 'Three violent tremors shook Thornhaven last night. Cracks in the Pillar of Might spread faster than ever. Elder Thorne urgently calls for all able-bodied adventurers to reinforce their connection to the Pillars through dedicated training. The kingdom needs you now.',
+      eventName: 'The Great Tremor',
+      eventDescription: 'Three violent tremors shook the realm last night. The balance of power grows unstable. All able-bodied adventurers are urged to reinforce their abilities through dedicated training. Your strength is needed now.',
       durationDays: 7,
       spawnsQuestType: 'world_event'
     },
     {
       eventName: 'Eclipse Phenomenon',
-      eventDescription: 'A mysterious eclipse darkens the sky, and the Six Pillars glow with unusual energy. Lady Seraphine believes this is a rare opportunity to strengthen your connection to the Pillars. Those who train during this celestial event may unlock hidden potential.',
+      eventDescription: 'A mysterious eclipse darkens the sky, and magical energy pulses with unusual intensity. This is a rare opportunity to strengthen your abilities. Those who train during this celestial event may unlock hidden potential.',
       durationDays: 5,
       spawnsQuestType: 'world_event'
     },
     {
       eventName: 'Festival of Balance',
-      eventDescription: 'Thornhaven celebrates the ancient Festival of Balance, honoring the teachings of Balancekeeper Thera. Elder Thorne encourages all citizens to demonstrate their commitment to holistic growth by training multiple aspects of their being.',
+      eventDescription: 'The realm celebrates the ancient Festival of Balance. All citizens are encouraged to demonstrate their commitment to holistic growth by training multiple aspects of their being.',
       durationDays: 7,
       spawnsQuestType: 'world_event'
     },
     {
       eventName: 'The Calling',
-      eventDescription: 'A strange resonance emanates from the Forgotten Peaks. The Pillars seem to be calling out to those with dedication and discipline. Many adventurers report feeling drawn to train harder than ever before. Will you answer the call?',
+      eventDescription: 'A strange resonance emanates from the distant peaks. The realm seems to be calling out to those with dedication and discipline. Many adventurers report feeling drawn to train harder than ever before. Will you answer the call?',
       durationDays: 10,
       spawnsQuestType: 'world_event'
     }
@@ -217,19 +217,19 @@ async function evaluateEventOutcome(eventId) {
     participationCount: participationRate,
     completionCount: completionRate,
     impact: 'moderate',
-    narrative: `The ${event.event_name} has concluded. ${completionRate} adventurers rose to the challenge and completed their quests. The Pillars acknowledge their dedication.`
+    narrative: `The ${event.event_name} has concluded. ${completionRate} adventurers rose to the challenge and completed their quests. Their dedication is acknowledged.`
   };
 
   // Determine impact level based on completion rate
   if (completionRate >= 100) {
     outcome.impact = 'major';
-    outcome.narrative = `The ${event.event_name} has ended in triumph! ${completionRate} adventurers answered the call, their collective effort resonating through the Pillars. The kingdom grows stronger.`;
+    outcome.narrative = `The ${event.event_name} has ended in triumph! ${completionRate} adventurers answered the call, their collective effort resonating through the realm. The world grows stronger.`;
   } else if (completionRate >= 50) {
     outcome.impact = 'moderate';
-    outcome.narrative = `The ${event.event_name} has concluded. ${completionRate} dedicated adventurers completed their quests. The Pillars show signs of stabilization.`;
+    outcome.narrative = `The ${event.event_name} has concluded. ${completionRate} dedicated adventurers completed their quests. Balance is being restored.`;
   } else if (completionRate < 20) {
     outcome.impact = 'minor';
-    outcome.narrative = `The ${event.event_name} has passed with limited response. Only ${completionRate} adventurers completed their quests. The Pillars remain unstable.`;
+    outcome.narrative = `The ${event.event_name} has passed with limited response. Only ${completionRate} adventurers completed their quests. The balance remains precarious.`;
   }
 
   console.log(`[WorldEvent] Evaluated outcome for: ${event.event_name}`);

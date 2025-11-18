@@ -114,72 +114,81 @@ Keep document creation to a minimum and file structure clean.
   - Backend endpoint for completing objectives
   - Quest completion blocked until all objectives done
 
-**🚨 CURRENT STATUS: Sprint 5.5 - Emergency Narrative System Fixes**
+- ✅ **Phase 2: D&D 5e Combat System (COMPLETE)**
+  - **Phase 2A:** Combat Detector Agent - Identifies combat triggers in narrative
+  - **Phase 2B:** Enhanced Combat Resolution
+    - Full D&D 5e attack mechanics (d20 + modifiers, critical hits/misses)
+    - Damage calculation with ability modifiers
+    - Zone-based positioning (Close/Near/Far)
+    - Initiative system with DEX modifiers
+    - Enemy AI with tactical decision-making
+    - Player HP tracking and defeat conditions
+  - **Phase 2C:** Combat Enhancements & UI
+    - Status condition system (Grappled, Prone, Frightened, Stunned, Poisoned, Paralyzed, Blinded, Restrained)
+    - Conditions affecting attack rolls (advantage/disadvantage)
+    - Conditions preventing movement
+    - Condition duration tracking and auto-expiration
+    - Rich combat narrative generator with varied descriptions
+    - Frontend CombatUI component with HP bars, quick actions, turn tracking
+    - Backend combat endpoints at /api/dm/combat/*
+    - Test suite passing for all combat features
 
-**CRITICAL ISSUES DISCOVERED:**
-- ❌ Database errors on objective completion
-- ❌ No UI for daily goal/training ritual completion
-- ❌ **Narrative quality FAILURE** - Every quest is "The Awakening..." (repetitive, boring)
-- ❌ Story Coordinator stuck on 'introduction' theme - no progression
-- ❌ Lorekeeper validation failing (15-75% scores, target is 85%+)
-- ❌ Memory/RAG systems not being used - no narrative context
-- ❌ Quest Creator temperature too high (0.8, should be 0.3-0.5 for consistency)
+**📊 CURRENT STATUS: Health System Integration Planning**
 
-**ROOT CAUSE:** The research-informed multi-agent architecture from PRD.md and Research.md is not properly implemented:
-1. Story Coordinator not tracking narrative progression (no qualities/story beats)
-2. Quest Creator not using RAG context or narrative summary
-3. Lorekeeper not enforcing World Bible rules strictly enough
-4. Memory Manager/narrative summary system not in the loop
+With the combat system complete, we are now pivoting to integrate the core health/wellness gamification aspect that makes this project unique. The comprehensive research in `Gamification and Health Research.md` provides the scientific foundation for this integration.
 
-**EMERGENCY SPRINT PLAN (2-3 Days - See SPRINTS.md Sprint 5.5):**
+**NEXT PHASE: Health-to-RPG Integration (Research Review & Planning)**
 
-**Phase 1: Critical Bugs (Day 1 - IMMEDIATE)**
-- Fix database schema issues
-- Fix objective completion endpoint
-- Add Daily Goal Completion UI
-- Fix JSON parsing
-- Add error handling
+**Key Research Insights to Implement:**
+- Self-Determination Theory (autonomy, competence, relatedness) over external rewards
+- Cooperative social structures (not competitive leaderboards) for sustainable engagement
+- Meaningful gamification where health behaviors genuinely affect game state
+- Adaptive difficulty accommodating different fitness levels
+- Content refresh cycles (8-12 weeks) to combat gamification plateau
+- Character progression mirroring real health transformation
 
-**Phase 2: Narrative System Core Fixes (Days 1-2 - HIGH PRIORITY)**
-- Implement narrative progression tracking (character qualities for story beats)
-- Fix Story Coordinator to use dynamic themes based on progression
-- Overhaul Quest Creator:
-  - Lower temperature from 0.8 to 0.5 (per Research.md)
-  - Retrieve top 5 past events via RAG
-  - Include narrative summary in prompts
-  - Add quest variety templates (investigation, rescue, escort, combat, social, exploration)
-  - Enforce title variety (no more "Awakening" spam)
-- Strengthen Lorekeeper:
-  - Embed World Bible at BOTH start and end of prompt (serial position effect)
-  - Add explicit good/bad examples
-  - Raise threshold to 85%
-- Implement narrative summary system (rolling 500-word summary)
-- Activate RAG for context retrieval
+**Integration Approach (from Research.md):**
+1. **Stat-to-Health Mapping:**
+   - STR (Might): Resistance training, progressive overload
+   - DEX (Grace): Yoga, flexibility, coordination work
+   - CON (Endurance): Cardio, sleep quality, nutrition
+   - INT (Clarity): Learning, educational content, skill acquisition
+   - WIS (Serenity): Meditation, journaling, mood tracking
+   - CHA (Radiance): Social activities, community engagement
 
-**Phase 3: User Experience (Day 2-3 - MEDIUM PRIORITY)**
-- Dashboard enhancements (training rituals section with completion buttons)
-- Quest card improvements (fix objective handlers, show rewards)
-- Error handling & feedback
+2. **Real-World Achievement Integration:**
+   - Wearable API integration (Terra/Thryve/ROOK platforms)
+   - Tiered verification (self-report, optional wearables, community verification)
+   - Anti-exploit mechanics (diminishing returns, time-gating, pattern recognition)
+   - Privacy-first architecture (HIPAA/GDPR compliance)
 
-**SUCCESS CRITERIA FOR SPRINT 5.5:**
-- ✅ Database errors eliminated
-- ✅ Goal completion UI functional
-- ✅ No repetitive quest titles (last 10 quests have unique titles)
-- ✅ Story Coordinator uses ≥5 different themes
-- ✅ Lorekeeper validation ≥85%
-- ✅ Narrative summary maintained for all characters
-- ✅ RAG retrieving context for quest generation
-- ✅ Temperature lowered to 0.5
-- ✅ Full user loop working (register → complete quest → get reward)
-- ✅ E2E test still passing
+3. **Failure State Design:**
+   - Graduated success levels (Bronze 50%, Silver 75%, Gold 100%)
+   - Pause XP gain vs. XP loss (avoid death spirals)
+   - Alternative paths during setbacks (injury/illness adaptation)
+   - "Life Happens" mode for major disruptions
 
-**⚠️ HARD GATE:** Cannot proceed to Sprint 6 (Dynamic Narrative System) without fixing these fundamental narrative coherence issues first.
+4. **Quest-to-Health Alignment:**
+   - Daily Quests = Habit reinforcement (10-min routine = 50 XP)
+   - Weekly Quests = Consistency tracking (3 workouts = 300 XP)
+   - Monthly Quests = Milestone achievements (50 miles = 2,000 XP)
+   - Epic Quests = Transformation goals (60-day streak = prestige level)
 
-**After Sprint 5.5 Completion:**
-- THEN proceed to Sprint 6: Dynamic Narrative System (MMO-style quest log, player agency, quest chains)
-- THEN install pgvector for semantic embeddings
-- THEN comprehensive integration testing (20+ session narratives)
-- THEN beta testing with revised success criteria
+**Immediate Action Items:**
+- 📖 Review `Gamification and Health Research.md` comprehensively
+- 📋 Create detailed implementation plan for health integration
+- 🏗️ Design database schema for health tracking (wearables, goals, streaks)
+- 🔌 Research API integration platforms (Terra, Thryve, ROOK)
+- 🎮 Design "Deep Mechanical Integration" where combat abilities unlock through real workouts
+- 🧪 Plan accessibility features for diverse fitness levels and disabilities
+
+**Success Criteria for Health Integration:**
+- Character stats genuinely reflect real-world health metrics
+- Combat effectiveness tied to workout consistency (well-rested buffs, fatigue debuffs)
+- Quest availability gated by demonstrated capability (adaptive difficulty)
+- Social features emphasize cooperation over competition
+- System accommodates disabilities, mental health challenges, economic constraints
+- Privacy compliance (HIPAA/GDPR) from day one
 
 ## Key Architecture Decisions (Research-Informed)
 
@@ -440,11 +449,15 @@ All agent calls should flow through caching layer to check L1/L2/L3 before hitti
   - lorekeeper.js
   - consequenceEngine.js
   - memoryManagerAgent.js
+  - combatDetector.js
 - ✅ `services/modelRouter.js` - Query routing by complexity
 - ✅ `services/claudeAPI.js` - Anthropic SDK integration with caching
 - ✅ `services/promptBuilder.js` - XML-structured prompts for all agents
 - ✅ `services/questService.js` - Quest lifecycle management
 - ✅ `services/characterService.js` - Character progression
+- ✅ `services/combatManager.js` - Full D&D 5e combat system with zone positioning
+- ✅ `services/conditionService.js` - Status condition management
+- ✅ `services/combatNarrative.js` - Rich combat description generator
 
 **Routes:**
 - ✅ `routes/monitoring.js` - Comprehensive monitoring dashboard endpoints

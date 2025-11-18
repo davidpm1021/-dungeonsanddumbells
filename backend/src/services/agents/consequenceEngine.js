@@ -139,14 +139,10 @@ class ConsequenceEngine {
     const questTitle = quest.title || 'your quest';
     const characterName = character.name || 'Adventurer';
 
-    // Extract primary stat from quest
-    const primaryStat = quest.objectives?.[0]?.statReward || 'STR';
-    const statName = WORLD_BIBLE.six_pillars[primaryStat]?.name || 'Might';
-
     const narrativeText = `You've completed ${questTitle}, ${characterName}. ` +
-      `Through dedication and effort, you've grown stronger in the Pillar of ${statName}. ` +
-      `The citizens of Vitalia take notice of your progress. ` +
-      `The path ahead is clearer now, and new opportunities await.`;
+      `Through dedication and effort, you've proven yourself capable. ` +
+      `Those around you take notice of your growth. ` +
+      `The path ahead is clearer now, and new challenges await.`;
 
     return {
       narrativeText,
@@ -220,7 +216,7 @@ class ConsequenceEngine {
       // Fallback for failed quest
       return {
         narrativeText: `Though you weren't able to complete ${quest.title || 'this quest'} this time, ` +
-          `the attempt itself taught you valuable lessons. In Vitalia, setbacks are simply part ` +
+          `the attempt itself taught you valuable lessons. Setbacks are simply part ` +
           `of the journey. Tomorrow is a new day, and new opportunities await.`,
         npcInteractions: [],
         worldStateChanges: [],

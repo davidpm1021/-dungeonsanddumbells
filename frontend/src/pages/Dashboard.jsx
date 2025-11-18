@@ -231,7 +231,7 @@ export default function Dashboard() {
               </div>
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 glass-chip">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-xs text-gray-300 font-medium">Vitalia</span>
+                <span className="text-xs text-gray-300 font-medium">Online</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -268,7 +268,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <p className="text-lg text-gray-300 font-light">
-                  Level {character.level} <span className="text-purple-400">{character.characterClass}</span> • Thornhaven, Vitalia
+                  Level {character.level} <span className="text-purple-400">{character.characterClass}</span>
                 </p>
               </div>
               <div className="stat-glow">
@@ -298,8 +298,8 @@ export default function Dashboard() {
                 <div className="absolute -left-4 top-0 w-1 h-full bg-gradient-to-b from-amber-500/50 to-transparent rounded-full"></div>
                 <p className="text-gray-200 leading-relaxed text-lg font-light italic">
                   {narrativeSummary || (activeQuests.length > 0
-                    ? `You stand in the heart of Thornhaven, ${activeQuests.length} ${activeQuests.length === 1 ? 'quest' : 'quests'} calling for your attention. The Six Pillars pulse with fading energy, waiting for someone brave enough to restore their ancient power...`
-                    : `You've arrived in Thornhaven, where the ancient Six Pillars—sources of wellness and magical power—are fading. The people grow weaker by the day. Elder Thorne seeks those brave enough to rediscover the lost practices and restore the kingdom. Your adventure is about to begin...`
+                    ? `You have ${activeQuests.length} ${activeQuests.length === 1 ? 'quest' : 'quests'} calling for your attention. Your journey of growth continues...`
+                    : `Your journey is about to begin. Through dedication and discipline, you will unlock your true potential. Every step forward builds your strength...`
                   )}
                 </p>
               </div>
@@ -446,7 +446,7 @@ export default function Dashboard() {
                 Set Your Training Goals
               </h4>
               <p className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto font-light">
-                Before you can begin your adventure, you must commit to training the Six Pillars.
+                Before you can begin your adventure, you must commit to your training goals.
                 Set your wellness goals—these will become your quest objectives.
               </p>
               <button
@@ -466,8 +466,7 @@ export default function Dashboard() {
                 Generate Your First Quest
               </h4>
               <p className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto font-light">
-                The Kingdom of Vitalia awaits. Elder Thorne has sensed your arrival and wishes to speak with you.
-                Generate your first quest to begin your journey through the narrative.
+                Your adventure awaits. Generate your first quest to begin your journey through the narrative.
               </p>
               <button
                 onClick={handleGenerateQuest}
@@ -536,7 +535,7 @@ export default function Dashboard() {
                 </h4>
                 <p className="text-green-300/80">
                   You've completed <strong className="text-green-200">{completedQuests.length}</strong> {completedQuests.length === 1 ? 'quest' : 'quests'}.
-                  Your choices have shaped Thornhaven's story.
+                  Your choices have shaped your story.
                 </p>
               </div>
               <button

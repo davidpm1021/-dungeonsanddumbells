@@ -3,62 +3,65 @@ import { useNavigate } from 'react-router-dom';
 import { goals } from '../services/api';
 import useCharacterStore from '../stores/characterStore';
 
-const PILLAR_INFO = {
+const STAT_INFO = {
   STR: {
-    name: 'Pillar of Might',
-    shortName: 'Might',
+    name: 'Strength',
+    shortName: 'STR',
     color: 'str',
     icon: '💪',
     description: 'Physical strength and power',
     examples: ['Weightlifting', 'Push-ups', 'Strength training', 'Heavy lifting'],
-    narrative: 'The crimson pillar pulses with raw power, waiting for those brave enough to test their limits.',
+    narrative: 'Build raw power through discipline and determination.',
   },
   DEX: {
-    name: 'Pillar of Grace',
-    shortName: 'Grace',
+    name: 'Dexterity',
+    shortName: 'DEX',
     color: 'dex',
     icon: '🏃',
     description: 'Agility, speed, and flexibility',
     examples: ['Running', 'Yoga', 'Dance', 'Cardio', 'Stretching'],
-    narrative: 'The emerald pillar shimmers with fluid motion, calling to those who seek to move like water.',
+    narrative: 'Master fluid motion and graceful movement.',
   },
   CON: {
-    name: 'Pillar of Endurance',
-    shortName: 'Endurance',
+    name: 'Constitution',
+    shortName: 'CON',
     color: 'con',
     icon: '🔥',
     description: 'Stamina and resilience',
     examples: ['Long runs', 'Swimming', 'Cycling', 'Endurance training'],
-    narrative: 'The golden pillar burns steady and eternal, a beacon for those who refuse to quit.',
+    narrative: 'Develop unshakeable endurance and vitality.',
   },
   INT: {
-    name: 'Pillar of Clarity',
-    shortName: 'Clarity',
+    name: 'Intelligence',
+    shortName: 'INT',
     color: 'int',
     icon: '📚',
     description: 'Learning and mental growth',
     examples: ['Reading', 'Learning a skill', 'Studying', 'Puzzles', 'Writing'],
-    narrative: 'The sapphire pillar gleams with ancient knowledge, inviting seekers of truth and wisdom.',
+    narrative: 'Expand your knowledge and sharpen your mind.',
   },
   WIS: {
-    name: 'Pillar of Serenity',
-    shortName: 'Serenity',
+    name: 'Wisdom',
+    shortName: 'WIS',
     color: 'wis',
     icon: '🧘',
     description: 'Mindfulness and inner peace',
     examples: ['Meditation', 'Journaling', 'Mindfulness', 'Deep breathing', 'Recovery'],
-    narrative: 'The violet pillar radiates calm energy, welcoming those who seek balance within chaos.',
+    narrative: 'Find balance and clarity through reflection.',
   },
   CHA: {
-    name: 'Pillar of Radiance',
-    shortName: 'Radiance',
+    name: 'Charisma',
+    shortName: 'CHA',
     color: 'cha',
     icon: '✨',
     description: 'Social wellness and confidence',
     examples: ['Social activities', 'Public speaking', 'Helping others', 'Self-care'],
-    narrative: 'The rose pillar glows with magnetic warmth, drawing those who inspire and uplift others.',
+    narrative: 'Cultivate confidence and meaningful connections.',
   },
 };
+
+// Alias for backwards compatibility
+const PILLAR_INFO = STAT_INFO;
 
 export default function GoalSetup() {
   const navigate = useNavigate();
@@ -179,28 +182,28 @@ export default function GoalSetup() {
                 </div>
 
                 <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-amber-200 via-purple-200 to-blue-200 bg-clip-text text-transparent">
-                  The Pillar Grove
+                  Training Setup
                 </h1>
 
                 <div className="max-w-3xl mx-auto space-y-4 text-gray-300 text-lg leading-relaxed mb-12">
                   <p className="text-xl md:text-2xl font-light italic text-amber-200/90">
-                    Welcome, {character?.name}. Elder Thorne greets you with a knowing nod...
+                    Welcome, {character?.name}. Your journey begins with commitment...
                   </p>
 
                   <div className="glass-card p-8 border border-amber-500/20 bg-amber-500/5 text-left">
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
-                      "The Six Pillars stand before you, ancient and patient. Each one represents a fundamental force of wellness—a path to power that has sustained kingdoms for millennia."
+                      "Before you stand six core attributes, each representing a fundamental aspect of growth—a path to power through dedication."
                     </p>
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
-                      "But the pillars do not give their strength freely. They demand commitment, consistency, and genuine effort. You must forge a bond with them through <span className="text-amber-300 font-semibold not-italic">daily practices</span>—what we call Training Rituals."
+                      "Your growth demands commitment, consistency, and genuine effort. You must forge your path through <span className="text-amber-300 font-semibold not-italic">daily practices</span>—what we call Training Rituals."
                     </p>
                     <p className="text-gray-300 leading-relaxed italic">
-                      "Choose your rituals wisely. Each one will strengthen your connection to a Pillar. Over time, you'll grow more powerful... and the kingdom will feel the change."
+                      "Choose your rituals wisely. Each one will strengthen a core attribute. Over time, you'll grow more powerful... and your story will unfold."
                     </p>
                   </div>
 
                   <p className="text-lg text-white/90 pt-4">
-                    It's time to set your Training Rituals. Which Pillars will you commit to?
+                    It's time to set your Training Rituals. Which attributes will you commit to?
                   </p>
                 </div>
 
@@ -209,8 +212,8 @@ export default function GoalSetup() {
                   className="modern-button-large group"
                 >
                   <span className="flex items-center gap-3">
-                    <span className="text-2xl">🏛️</span>
-                    <span>Approach the Pillars</span>
+                    <span className="text-2xl">🎯</span>
+                    <span>Choose Your Attributes</span>
                     <span className="text-xl group-hover:translate-x-1 transition-transform">→</span>
                   </span>
                 </button>
@@ -253,10 +256,10 @@ export default function GoalSetup() {
 
               <div className="text-center mb-8">
                 <h2 className="text-4xl font-bold text-white mb-4">
-                  Choose a Pillar
+                  Choose an Attribute
                 </h2>
                 <p className="text-gray-300 text-lg">
-                  Which Pillar calls to you? Select one to create a Training Ritual.
+                  Which attribute calls to you? Select one to create a Training Ritual.
                 </p>
               </div>
 
@@ -347,7 +350,7 @@ export default function GoalSetup() {
                         autoFocus
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        Be specific. This is your commitment to the Pillar.
+                        Be specific. This is your commitment to growth.
                       </p>
                     </div>
 
@@ -434,7 +437,7 @@ export default function GoalSetup() {
                         disabled={loading}
                         className="modern-button flex-1 disabled:opacity-50"
                       >
-                        {loading ? 'Forging Bond...' : 'Forge Bond with Pillar'}
+                        {loading ? 'Creating Ritual...' : 'Create Training Ritual'}
                       </button>
                       <button
                         type="button"
@@ -469,18 +472,18 @@ export default function GoalSetup() {
                 <div className="max-w-3xl mx-auto space-y-4 text-gray-300 text-lg leading-relaxed mb-12">
                   <div className="glass-card p-8 border border-green-500/20 bg-green-500/5 text-left">
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
-                      Elder Thorne nods approvingly as the Pillars pulse with renewed energy.
-                      <span className="text-green-300 font-semibold not-italic"> "You have chosen wisely,"</span> he says,
-                      his voice carrying the weight of ages.
+                      Your commitment has been recognized.
+                      <span className="text-green-300 font-semibold not-italic"> You have chosen wisely,</span>
+                      setting the foundation for your journey.
                     </p>
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
-                      "Remember: the Pillars do not judge you by your failures, but by your persistence.
+                      Remember: you are not judged by your failures, but by your persistence.
                       Complete your Training Rituals each day, and watch as your power grows.
-                      The kingdom's fate now rests, in part, on your shoulders."
+                      Your story now begins.
                     </p>
                     <p className="text-gray-300 leading-relaxed italic">
-                      "Now go. Your first quest awaits in the village. The narrative of Vitalia is being written...
-                      and you are the author."
+                      Now go. Your first quest awaits. Your narrative is being written...
+                      and you are the author.
                     </p>
                   </div>
 
@@ -497,11 +500,11 @@ export default function GoalSetup() {
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-amber-400">3.</span>
-                        <span>Complete your Training Rituals to earn XP and strengthen your Pillar bonds</span>
+                        <span>Complete your Training Rituals to earn XP and strengthen your attributes</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-amber-400">4.</span>
-                        <span>Watch as your choices shape the kingdom and unlock new story paths</span>
+                        <span>Watch as your choices shape your world and unlock new story paths</span>
                       </li>
                     </ul>
                   </div>

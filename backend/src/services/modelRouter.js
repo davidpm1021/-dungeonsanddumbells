@@ -124,7 +124,10 @@ class ModelRouter {
       'lorekeeper': this.models.sonnet45.id,
       'memory_manager': this.models.sonnet45.id, // Use Sonnet 4 since 3.5 not available in API
       'consequence_engine': this.models.sonnet45.id,
-      'npc_generator': this.models.sonnet45.id // Use Sonnet 4 since 3.5 not available in API
+      'npc_generator': this.models.sonnet45.id, // Use Sonnet 4 since 3.5 not available in API
+      'self_consistency': this.models.haiku.id, // Use Haiku for fast consistency checks
+      'validation_pipeline': this.models.haiku.id, // Use Haiku for validation
+      'narrative_director': this.models.sonnet45.id // Master orchestrator uses premium model
     };
 
     return agentMap[agentType] || this.models.sonnet45.id;

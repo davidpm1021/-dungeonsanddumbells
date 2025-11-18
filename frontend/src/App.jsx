@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import CharacterCreation from './pages/CharacterCreation';
 import GoalSetup from './pages/GoalSetup';
 import QuestLog from './pages/QuestLog';
+import AgentLab from './pages/AgentLab';
+import DungeonMaster from './pages/DungeonMaster';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -14,6 +16,12 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* Agent Lab - No auth for development/testing */}
+        <Route path="/agent-lab" element={<AgentLab />} />
+
+        {/* Interactive DM - No auth for easy access */}
+        <Route path="/dm" element={<DungeonMaster />} />
 
         {/* Protected routes */}
         <Route

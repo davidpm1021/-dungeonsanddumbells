@@ -175,4 +175,54 @@ export const monitoring = {
     api.get('/monitoring/dashboard', { params: { days } }),
 };
 
+// Agent Lab endpoints (DM testing/evaluation)
+export const agentLab = {
+  testStoryCoordinator: (character = {}, activeQuestCount = 0) =>
+    api.post('/agent-lab/story-coordinator', { character, activeQuestCount }),
+
+  testQuestCreator: (character = {}, decision = null) =>
+    api.post('/agent-lab/quest-creator', { character, decision }),
+
+  testLorekeeper: (character = {}, quest = null) =>
+    api.post('/agent-lab/lorekeeper', { character, quest }),
+
+  testConsequenceEngine: (character = {}, quest = null, recentMemories = []) =>
+    api.post('/agent-lab/consequence-engine', { character, quest, recentMemories }),
+
+  testMemoryManager: (events = []) =>
+    api.post('/agent-lab/memory-manager', { events }),
+
+  testFullPipeline: (character = {}) =>
+    api.post('/agent-lab/full-pipeline', { character }),
+
+  getPromptPreview: (agentType) =>
+    api.get(`/agent-lab/prompt-preview/${agentType}`),
+
+  // World Generation
+  getGenres: () =>
+    api.get('/agent-lab/genres'),
+
+  generateWorld: (genre, character = {}, goals = []) =>
+    api.post('/agent-lab/generate-world', { genre, character, goals }),
+
+  // Research-backed orchestration systems
+  testNarrativeDirector: (character = {}, worldContext = {}, testScenario = 'new_quest') =>
+    api.post('/agent-lab/narrative-director', { character, worldContext, testScenario }),
+
+  testValidationPipeline: (character = {}, quest = {}, tier = 'all') =>
+    api.post('/agent-lab/validation-pipeline', { character, quest, tier }),
+
+  testStoryletSystem: (character = {}, qualities = {}, action = 'get_available') =>
+    api.post('/agent-lab/storylet-system', { character, qualities, action }),
+
+  testKnowledgeGraph: (character = {}, quest = {}, action = 'extract') =>
+    api.post('/agent-lab/knowledge-graph', { character, quest, action }),
+
+  testSelfConsistency: (character = {}, quest = {}, variations = 3) =>
+    api.post('/agent-lab/self-consistency', { character, quest, variations }),
+
+  getOrchestrationMetrics: () =>
+    api.get('/agent-lab/orchestration-metrics'),
+};
+
 export default api;

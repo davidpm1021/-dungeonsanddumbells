@@ -225,24 +225,24 @@ class QuestCreator {
    */
   getFallbackQuest(decision, character) {
     const statNames = {
-      STR: { name: 'Pillar of Might', activity: 'strength training' },
-      DEX: { name: 'Pillar of Grace', activity: 'cardio or flexibility work' },
-      CON: { name: 'Pillar of Endurance', activity: 'endurance training' },
-      INT: { name: 'Pillar of Clarity', activity: 'reading or learning' },
-      WIS: { name: 'Pillar of Serenity', activity: 'meditation or mindfulness' },
-      CHA: { name: 'Pillar of Radiance', activity: 'social connection or self-care' }
+      STR: { name: 'Strength', activity: 'strength training' },
+      DEX: { name: 'Dexterity', activity: 'cardio or flexibility work' },
+      CON: { name: 'Constitution', activity: 'endurance training' },
+      INT: { name: 'Intelligence', activity: 'reading or learning' },
+      WIS: { name: 'Wisdom', activity: 'meditation or mindfulness' },
+      CHA: { name: 'Charisma', activity: 'social connection or self-care' }
     };
 
     const targetStat = decision.targetStat || this.getLowestStat(character);
-    const pillar = statNames[targetStat];
+    const stat = statNames[targetStat];
 
     return {
-      title: `Rediscover the ${pillar.name}`,
-      description: `You sense a weakness in your connection to the ${pillar.name}. The kingdom needs you to be strong in all the ancient ways. Take time to strengthen this pillar through dedicated practice.`,
+      title: `Strengthen Your ${stat.name}`,
+      description: `You sense a weakness in your ${stat.name}. Take time to strengthen this attribute through dedicated practice.`,
       objectives: [
         {
-          description: `Complete a ${pillar.activity} session`,
-          goalMapping: pillar.activity,
+          description: `Complete a ${stat.activity} session`,
+          goalMapping: stat.activity,
           statReward: targetStat,
           xpReward: decision.suggestedDifficulty === 'hard' ? 30 : decision.suggestedDifficulty === 'medium' ? 20 : 15
         }

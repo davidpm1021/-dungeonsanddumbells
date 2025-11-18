@@ -365,17 +365,196 @@ class MemoryManager {
     );
 
     if (result.rows.length === 0) {
-      // Initialize world state if it doesn't exist
-      await pool.query(
-        `INSERT INTO world_state (character_id, narrative_summary)
-         VALUES ($1, $2)`,
-        [characterId, 'Your adventure in Vitalia is just beginning. The Six Pillars await discovery.']
-      );
+      // Try to initialize world state if it doesn't exist
+      // But handle gracefully if character doesn't exist (e.g., Agent Lab testing)
+      try {
+        await pool.query(
+          `INSERT INTO world_state (character_id, narrative_summary)
+           VALUES ($1, $2)`,
+          [characterId, 'Your journey is just beginning. The path ahead is uncharted and full of possibility.']
+        );
 
-      return await this.getWorldState(characterId);
+        return await this.getWorldState(characterId);
+      } catch (insertError) {
+        // If FK constraint fails (character doesn't exist), return default state
+        if (insertError.code === '23503') {
+          console.log(`[MemoryManager] Character ${characterId} not in DB, returning default world state`);
+          return {
+            characterId,
+            narrativeSummary: 'Your journey is just beginning. The path ahead is uncharted and full of possibility.',
+            episodeSummaries: [],
+            qualityChanges: {},
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+        throw insertError;
+      }
     }
 
     return transformKeysToCamel(result.rows[0]);
+  }
+
+  /**
+   * Alias for storeInWorkingMemory (used by NarrativeDirector)
+   */
+  async storeEvent(characterId, event) {
+    // Transform event object to expected format
+    const formattedEvent = {
+      eventType: event.type || 'narrative_event',
+      description: this.formatEventDescription(event),
+      participants: event.participants || [],
+      statChanges: event.rewards || {},
+      questId: event.quest?.id || null,
+      goalId: event.goalId || null,
+      context: event
+    };
+
+    return await this.storeInWorkingMemory(characterId, formattedEvent);
+  }
+
+  /**
+   * Format event description from event object
+   */
+  formatEventDescription(event) {
+    if (typeof event === 'string') return event;
+
+    if (event.type === 'quest_generated') {
+      return `New quest available: ${event.quest?.title || 'Unknown Quest'}`;
+    }
+
+    if (event.type === 'quest_completed') {
+      return `Completed quest: ${event.quest?.title || 'Unknown Quest'}. ${event.outcome?.narrativeText || ''}`;
+    }
+
+    if (event.narrativeText) {
+      return event.narrativeText;
+    }
+
+    return JSON.stringify(event).slice(0, 500);
+  }
+
+  /**
+   * Get episode memories (alias for getEpisodeMemory)
+   */
+  async getEpisodeMemories(characterId, count = 5) {
+    return await this.getEpisodeMemory(characterId, count);
+  }
+
+  /**
+   * Get event count for character
+   */
+  async getEventCount(characterId) {
+    const result = await pool.query(
+      `SELECT COUNT(*) as count FROM narrative_events WHERE character_id = $1`,
+      [characterId]
+    );
+    return parseInt(result.rows[0].count, 10);
+  }
+
+  /**
+   * Get old events (beyond recent threshold)
+   */
+  async getOldEvents(characterId, keepRecent = 10) {
+    const result = await pool.query(
+      `SELECT * FROM narrative_events
+       WHERE character_id = $1
+       ORDER BY created_at DESC
+       OFFSET $2`,
+      [characterId, keepRecent]
+    );
+    return transformKeysToCamel(result.rows);
+  }
+
+  /**
+   * Store episode summary
+   */
+  async storeEpisodeSummary(characterId, summary) {
+    // Store in world_state
+    await pool.query(
+      `UPDATE world_state
+       SET episode_summaries = episode_summaries || $1::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE character_id = $2`,
+      [JSON.stringify([summary]), characterId]
+    );
+
+    // Also store in memory_hierarchy
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 90);
+
+    await pool.query(
+      `INSERT INTO memory_hierarchy (
+        character_id, memory_type, content_text,
+        importance_score, metadata, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        characterId,
+        'episode',
+        summary.summary_text || summary.text || JSON.stringify(summary).slice(0, 1000),
+        0.7,
+        JSON.stringify(summary),
+        expiresAt
+      ]
+    );
+  }
+
+  /**
+   * Archive events (mark as compressed)
+   */
+  async archiveEvents(characterId, eventIds) {
+    if (!eventIds || eventIds.length === 0) return;
+
+    // For now, delete old events after compression
+    // In production, might want to move to archive table
+    await pool.query(
+      `DELETE FROM narrative_events
+       WHERE character_id = $1 AND id = ANY($2)`,
+      [characterId, eventIds]
+    );
+  }
+
+  /**
+   * Enhanced update narrative summary - handles quest/outcome objects
+   */
+  async updateNarrativeSummary(characterId, newContent) {
+    // Extract text from object if necessary
+    let contentText = '';
+
+    if (typeof newContent === 'string') {
+      contentText = newContent;
+    } else if (newContent.narrativeText) {
+      contentText = newContent.narrativeText;
+    } else if (newContent.description) {
+      contentText = newContent.description;
+    } else if (newContent.title) {
+      contentText = `Quest: ${newContent.title}`;
+    } else {
+      contentText = JSON.stringify(newContent).slice(0, 200);
+    }
+
+    const currentState = await pool.query(
+      `SELECT narrative_summary FROM world_state WHERE character_id = $1`,
+      [characterId]
+    );
+
+    let updatedSummary = currentState.rows[0]?.narrative_summary || '';
+    updatedSummary += `\n\n${contentText}`;
+
+    // Rolling summary: keep last 500 words
+    const words = updatedSummary.split(' ');
+    if (words.length > 500) {
+      updatedSummary = words.slice(-500).join(' ');
+    }
+
+    await pool.query(
+      `UPDATE world_state
+       SET narrative_summary = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE character_id = $2`,
+      [updatedSummary, characterId]
+    );
+
+    return updatedSummary;
   }
 
   /**

@@ -116,28 +116,34 @@ class Lorekeeper {
    */
   getLorekeeperSystemPrompt() {
     // Serial Position Effect: Place World Bible at BOTH start AND end
+    const coreRules = WORLD_BIBLE.core_rules || [];
+    const forbiddenTones = WORLD_BIBLE.setting?.forbidden_tones || [];
+    const magicConstraints = WORLD_BIBLE.magic_system_constraints || [];
+    const npcs = WORLD_BIBLE.npcs || {};
+    const locations = WORLD_BIBLE.locations || {};
+
     const worldBibleSection = `<world_bible>
 # Core Rules (NEVER VIOLATE)
-${WORLD_BIBLE.core_rules.map((rule, i) => `${i + 1}. ${rule}`).join('\n')}
+${coreRules.map((rule, i) => `${i + 1}. ${rule}`).join('\n')}
 
 # Forbidden Tones
-${WORLD_BIBLE.setting.forbidden_tones.map(t => `- ${t}`).join('\n')}
+${forbiddenTones.map(t => `- ${t}`).join('\n')}
 
 # Magic System Constraints
-${WORLD_BIBLE.magic_system_constraints.map(c => `- ${c}`).join('\n')}
+${magicConstraints.map(c => `- ${c}`).join('\n')}
 
-# Known NPCs
-${Object.entries(WORLD_BIBLE.npcs).slice(0, 3).map(([key, npc]) => `
+${Object.keys(npcs).length > 0 ? `# Known NPCs
+${Object.entries(npcs).slice(0, 3).map(([key, npc]) => `
 ## ${npc.name}
 - Personality: ${npc.personality}
-- Never does: ${npc.never_does.join(', ')}
-- Always does: ${npc.always_does.join(', ')}
-`).join('\n')}
+- Never does: ${npc.never_does?.join(', ') || 'N/A'}
+- Always does: ${npc.always_does?.join(', ') || 'N/A'}
+`).join('\n')}` : '# NPCs\nNo predefined NPCs - world is user-defined'}
 
-# Known Locations
-${Object.entries(WORLD_BIBLE.locations).slice(0, 5).map(([key, loc]) => `
+${Object.keys(locations).length > 0 ? `# Known Locations
+${Object.entries(locations).slice(0, 5).map(([key, loc]) => `
 - ${loc.name}: ${loc.description}
-`).join('\n')}
+`).join('\n')}` : '# Locations\nNo predefined locations - world is user-defined'}
 </world_bible>`;
 
     return `You are the Lorekeeper for Dumbbells & Dragons, guardian of narrative consistency.
@@ -151,13 +157,13 @@ You must validate against these specific aspects with the following score breakd
 1. **World Rules Compliance (40% of score)**:
    - No mention of death, killing, or character mortality
    - NPCs use persuasion/obstacles, never combat spells
-   - The Six Pillars are the source of power, not traditional magic
+   - Magic enhances natural abilities, not flashy combat spells
    - Time moves forward (no time loops or resets)
    - NPCs remember player actions (persistent relationships)
 
 2. **Character Consistency (30% of score)**:
    - NPC behavior matches their documented personality
-   - NPC dialogue matches their voice (e.g., Elder Thorne speaks in short, gruff sentences)
+   - NPC dialogue matches their voice (e.g., gruff mentor speaks in short sentences)
    - References to known NPCs are accurate
    - Unknown NPCs must fit the world's tone and style
 
@@ -183,10 +189,10 @@ You must validate against these specific aspects with the following score breakd
 - "Just believe in yourself and you'll succeed!" (toxic positivity)
 
 ✅ **GOOD - Follows Guidelines:**
-- "If you don't succeed, the Pillar's energy will fade further" (consequences without death)
-- "Channel your connection to the Pillar to create a barrier" (magic from Pillars)
+- "If you don't succeed, your power will fade further" (consequences without death)
+- "Channel your inner strength to create a barrier" (magic from within)
 - "The training will be difficult, but I see potential in you" (earnest encouragement)
-- "Your dedication to the Pillar of Might grows stronger each day" (factual acknowledgment)
+- "Your dedication to Strength training grows stronger each day" (factual acknowledgment)
 
 ## SCORING RUBRIC
 
@@ -203,7 +209,7 @@ ${worldBibleSection}
 - Check EVERY NPC reference against the known NPCs list
 - Verify NO forbidden words: death, die, kill, pathetic, weak, failure
 - Ensure tone is NEVER shaming, patronizing, or toxic-positive
-- Validate that magic comes from The Six Pillars, not spells
+- Validate that magic enhances natural abilities, not flashy spells
 
 Respond with ONLY valid JSON in this structure:
 {
@@ -280,14 +286,15 @@ Target is 85+ for publication.`;
     }
 
     result.violations.forEach((v, i) => {
-      const validTypes = ['tone', 'contradiction', 'npc_behavior', 'magic_system', 'unknown_reference'];
+      const validTypes = ['tone', 'contradiction', 'npc_behavior', 'magic_system', 'unknown_reference', 'plot_logic'];
       if (!validTypes.includes(v.type)) {
-        throw new Error(`Invalid validation: violation ${i} has invalid type`);
+        console.warn(`[Lorekeeper] Warning: violation ${i} has non-standard type: ${v.type}`);
+        // Don't throw, just warn - allow flexibility
       }
 
       const validSeverities = ['critical', 'major', 'minor'];
       if (!validSeverities.includes(v.severity)) {
-        throw new Error(`Invalid validation: violation ${i} has invalid severity`);
+        console.warn(`[Lorekeeper] Warning: violation ${i} has non-standard severity: ${v.severity}`);
       }
     });
   }
@@ -325,9 +332,10 @@ Target is 85+ for publication.`;
       }
     });
 
-    // Check for unknown NPCs
-    const knownNPCs = Object.values(WORLD_BIBLE.npcs).map(npc => npc.name.toLowerCase());
-    if (quest.npcInvolved && !knownNPCs.includes(quest.npcInvolved.toLowerCase())) {
+    // Check for unknown NPCs (only if NPCs are defined)
+    const npcs = WORLD_BIBLE.npcs || {};
+    const knownNPCs = Object.values(npcs).map(npc => npc.name?.toLowerCase() || '');
+    if (quest.npcInvolved && knownNPCs.length > 0 && !knownNPCs.includes(quest.npcInvolved.toLowerCase())) {
       score -= 15;
       violations.push({
         type: 'unknown_reference',
