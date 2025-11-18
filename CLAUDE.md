@@ -133,9 +133,77 @@ Keep document creation to a minimum and file structure clean.
     - Backend combat endpoints at /api/dm/combat/*
     - Test suite passing for all combat features
 
-**📊 CURRENT STATUS: Health System Integration Planning**
+**🚨 CRITICAL: Combat Detection Integration Required**
 
-With the combat system complete, we are now pivoting to integrate the core health/wellness gamification aspect that makes this project unique. The comprehensive research in `Gamification and Health Research.md` provides the scientific foundation for this integration.
+**Issue Discovered**: Combat system works in isolation (all test scripts pass), but combat is NOT being triggered from the /dm interface during actual gameplay.
+
+**Root Cause**: The CombatDetector agent is not integrated into the DMOrchestrator pipeline. When users type combat actions (e.g., "I attack the bandit"), the system generates narrative responses through DMNarrator instead of initializing combat.
+
+**Evidence from backend logs**:
+- User actions processed through `[DMOrchestrator]` pipeline ✓
+- NO `[CombatDetector]` logs appear anywhere ✗
+- NO `[CombatManager]` logs appear ✗
+- Combat initialization never occurs despite explicit combat triggers ✗
+- Actions routed to DMNarrator for narrative generation (incorrect flow)
+
+**What Works**:
+- ✅ CombatManager service (all mechanics functional)
+- ✅ CombatDetector agent (works in isolation)
+- ✅ Combat endpoints (/api/dm/combat/*)
+- ✅ Frontend CombatUI component
+- ✅ Test suite (test-combat-phase2c.js passes)
+
+**What's Missing**:
+- ❌ Combat detection step in DMOrchestrator.processAction() pipeline
+- ❌ Combat state check before narrative generation
+- ❌ Action routing to CombatManager when combat is active
+
+**Required Fix**:
+Modify `backend/src/services/dmOrchestrator.js` to add combat detection and routing:
+
+```javascript
+// STEP 2.5 (NEW): Check for combat triggers or active combat
+const combatCheck = await CombatDetector.detectCombat(input, character);
+if (combatCheck.shouldInitiateCombat) {
+  // Initialize new combat encounter
+  const combat = await CombatManager.initializeEncounter(
+    character.id,
+    combatCheck.combatData,
+    activeQuest?.id
+  );
+  return { narrative: combat.initialNarrative, combat: combat };
+}
+
+// Check if character has active combat
+const activeCombat = await CombatManager.getActiveCombat(character.id);
+if (activeCombat) {
+  // Route action to combat system
+  const result = await CombatManager.processCombatAction(
+    activeCombat.encounter.id,
+    input
+  );
+  return { narrative: result.narrative, combat: result };
+}
+
+// Otherwise, proceed with normal narrative generation (existing flow)
+```
+
+**Integration Point**: Between Step 2 (narrative summary) and Step 3 (generate response) in DMOrchestrator.processAction()
+
+**Files to Modify**:
+1. `backend/src/services/dmOrchestrator.js` - Add combat detection and routing logic
+2. Add CombatDetector and CombatManager imports
+
+**⚠️ HARD GATE**: Must fix combat detection integration before proceeding with health system work. This is a critical user-facing issue - the combat system exists but is unreachable through normal gameplay.
+
+**📊 CURRENT STATUS: Health System Integration Planning (BLOCKED BY COMBAT INTEGRATION)**
+
+With the combat system *technically* complete but not yet integrated into the main game loop, we have two parallel workstreams:
+
+1. **IMMEDIATE (Critical Bug)**: Integrate combat detection into DMOrchestrator
+2. **NEXT (After combat fix)**: Health/wellness gamification integration
+
+The comprehensive research in `Gamification and Health Research.md` provides the scientific foundation for health integration once combat is fully operational.
 
 **NEXT PHASE: Health-to-RPG Integration (Research Review & Planning)**
 
