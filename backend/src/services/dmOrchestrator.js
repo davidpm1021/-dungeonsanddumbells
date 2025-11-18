@@ -92,26 +92,30 @@ class DMOrchestrator {
       let combatState = null;
       let combatDetectionResult = null;
 
+      // Check if character is already in active combat (only if they have an ID)
       if (character.id) {
-        // Check if character is already in active combat
         const activeCombat = await CombatManager.getActiveCombat(character.id);
 
         if (activeCombat) {
           combatState = activeCombat;
           pipelineLog[pipelineLog.length - 1].result = 'active_combat_found';
           console.log(`[DMOrchestrator] Step 2.7: Active combat found (${activeCombat.encounterName})`);
-        } else {
-          // No active combat - detect if this action should trigger combat
-          combatDetectionResult = await CombatDetector.analyze(
-            action,
-            worldContext,
-            character,
-            relevantMemories
-          );
-          pipelineLog[pipelineLog.length - 1].result = combatDetectionResult.combatTriggered ? 'combat_triggered' : 'no_combat';
-          console.log(`[DMOrchestrator] Step 2.7: Combat ${combatDetectionResult.combatTriggered ? `triggered (${combatDetectionResult.enemies.length} enemies)` : 'not triggered'}`);
         }
       }
+
+      // If no active combat, detect if this action should trigger combat
+      // This works even for temporary characters without IDs
+      if (!combatState) {
+        combatDetectionResult = await CombatDetector.analyze(
+          action,
+          worldContext,
+          character,
+          relevantMemories
+        );
+        pipelineLog[pipelineLog.length - 1].result = combatDetectionResult.combatTriggered ? 'combat_triggered' : 'no_combat';
+        console.log(`[DMOrchestrator] Step 2.7: Combat ${combatDetectionResult.combatTriggered ? `triggered (${combatDetectionResult.enemies.length} enemies)` : 'not triggered'}`);
+      }
+
       pipelineLog[pipelineLog.length - 1].duration = Date.now() - pipelineLog[pipelineLog.length - 1].startTime;
 
       // Step 2.8: Initialize combat encounter if triggered
@@ -278,6 +282,31 @@ class DMOrchestrator {
   buildOrchestratedSystemPrompt(character, worldContext, narrativeSummary, relevantMemories) {
     let prompt = `You are a skilled Dungeon Master running a tabletop RPG session with a focus on narrative consistency and immersion.
 
+## CORE PRINCIPLE: PLAYER AGENCY
+
+**NEVER ROLL DICE FOR THE PLAYER. NEVER DECIDE PLAYER ACTIONS.**
+
+The most sacred rule of being a Dungeon Master: **The player controls their character, you control the world.**
+
+- ✅ DO: "Roll a d20 for your attack!" / "What do you do?"
+- ✅ DO: "Roll for initiative! Add your DEX modifier (+3)"
+- ✅ DO: "The bandit swings at you - roll a d20 for your Dexterity saving throw!"
+- ❌ DON'T: "You roll a 15 and hit!" / "You decide to flee"
+- ❌ DON'T: "Your initiative is 18" (let them roll it)
+- ❌ DON'T: "You attack the guard" (only if they said so)
+
+**YOU roll for:**
+- Enemy actions, attacks, saves
+- Environmental effects (random encounters, weather)
+- NPC reactions and initiatives
+
+**PLAYER rolls for:**
+- Their own attacks, damage, saves, skill checks
+- Their own initiative
+- Any action their character takes
+
+**Make them FEEL the dice.** The tension of rolling, the triumph of a natural 20, the dread of a critical fail - these are what make D&D magical.
+
 ## WORLD CONTEXT
 ${worldContext}
 
@@ -347,17 +376,55 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks.`;
 
     // Include combat state if present
     if (combatState) {
-      prompt += `COMBAT STATUS:\n`;
-      prompt += `Encounter: ${combatState.encounterName}\n`;
-      prompt += `Round: ${combatState.currentRound}\n`;
-      prompt += `Current Turn: ${combatState.initiativeOrder[combatState.currentTurnIndex].name}\n`;
+      const isFirstTurn = combatState.currentRound === 1 && combatState.currentTurnIndex === 0;
+
+      if (isFirstTurn) {
+        // FIRST TURN OF COMBAT - Initiative phase
+        prompt += `🎲 COMBAT JUST STARTED - INITIATIVE PHASE!\n\n`;
+
+        // Show enemy initiative rolls (DM already rolled these)
+        prompt += `ENEMY INITIATIVE ROLLS (you rolled these):\n`;
+        combatState.initiativeOrder.forEach((combatant) => {
+          if (combatant.type === 'enemy') {
+            const roll = combatant.initiative - combatant.dexMod;
+            const sign = combatant.dexMod >= 0 ? '+' : '';
+            prompt += `- ${combatant.name}: Rolled ${roll} ${sign}${combatant.dexMod} = ${combatant.initiative}\n`;
+          }
+        });
+
+        // Get player's DEX modifier
+        const playerInitiative = combatState.initiativeOrder.find(c => c.type === 'player');
+        const sign = playerInitiative.dexMod >= 0 ? '+' : '';
+
+        prompt += `\nPLAYER INITIATIVE:\n`;
+        prompt += `- ${playerInitiative.name} needs to roll d20 ${sign}${playerInitiative.dexMod} for initiative\n`;
+        prompt += `- Current roll in system: ${playerInitiative.initiative} (placeholder - player will provide real roll)\n\n`;
+
+        prompt += `CRITICAL: As the DM, you MUST:\n`;
+        prompt += `1. Describe the scene dramatically (enemy appearance, environment, rising tension)\n`;
+        prompt += `2. Tell the PLAYER to roll: "Roll for initiative! Roll a d20 and add your DEX modifier (${sign}${playerInitiative.dexMod})!"\n`;
+        prompt += `3. Announce enemy rolls: "I rolled a [X] for the ${combatState.enemies[0].name}!"\n`;
+        prompt += `4. DO NOT announce turn order yet - wait for player's roll\n`;
+        prompt += `5. End with: "What did you roll for initiative?"\n\n`;
+
+        prompt += `NOTE: Turn order will be determined after player submits their initiative roll.\n\n`;
+      } else {
+        // ONGOING COMBAT
+        prompt += `COMBAT STATUS:\n`;
+        prompt += `Encounter: ${combatState.encounterName}\n`;
+        prompt += `Round: ${combatState.currentRound}\n`;
+        prompt += `Current Turn: ${combatState.initiativeOrder[combatState.currentTurnIndex].name}\n`;
+        prompt += `\nIMPORTANT: This is an ongoing combat turn. Narrate the action and prompt for next move.\n\n`;
+      }
+
+      // Always include enemy status and zones
       prompt += `Player Zone: ${combatState.zoneSystem.player_zone}\n`;
       prompt += `\nEnemies:\n`;
       combatState.enemies.forEach((enemy, idx) => {
         const zone = combatState.zoneSystem.enemy_zones[`enemy_${idx}`] || 'near';
         prompt += `- ${enemy.name}: ${enemy.currentHp}/${enemy.maxHp} HP, AC ${enemy.ac}, Zone: ${zone}\n`;
       });
-      prompt += `\nIMPORTANT: You are narrating an active combat encounter. Describe the action dramatically and include combat mechanics in your narrative.\n\n`;
+      prompt += `\n`;
     }
 
     prompt += `CURRENT PLAYER ACTION: ${action}\n\n`;

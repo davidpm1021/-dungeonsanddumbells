@@ -102,7 +102,8 @@ Keep document creation to a minimum and file structure clean.
   - Monitoring endpoints for health, cache, agents, latency, cost
 
 - ✅ **Integration Test Suite**
-  - test-full-pipeline.js created for end-to-end testing
+  - backend/tests/integration/test-full-pipeline.js - End-to-end testing
+  - backend/tests/integration/test-combat-integration.js - Combat detection validation
   - Tests: auth → character → goals → quest generation → completion → memory
   - Server verified operational with Redis + PostgreSQL
   - Monitoring dashboard accessible and functional
@@ -133,130 +134,140 @@ Keep document creation to a minimum and file structure clean.
     - Backend combat endpoints at /api/dm/combat/*
     - Test suite passing for all combat features
 
-**🚨 CRITICAL: Combat Detection Integration Required**
+**✅ COMBAT INTEGRATION COMPLETE**
 
-**Issue Discovered**: Combat system works in isolation (all test scripts pass), but combat is NOT being triggered from the /dm interface during actual gameplay.
+**Issue Resolved**: Combat system now fully integrated with DM Orchestrator pipeline!
 
-**Root Cause**: The CombatDetector agent is not integrated into the DMOrchestrator pipeline. When users type combat actions (e.g., "I attack the bandit"), the system generates narrative responses through DMNarrator instead of initializing combat.
+**Changes Made**:
+1. ✅ **Backend API** (`backend/src/routes/dm.js`):
+   - Modified `/dm/interact` endpoint to return `combatState` and `skillCheckResult` in response
+   - Combat state now properly forwarded from DMOrchestrator to frontend
 
-**Evidence from backend logs**:
-- User actions processed through `[DMOrchestrator]` pipeline ✓
-- NO `[CombatDetector]` logs appear anywhere ✗
-- NO `[CombatManager]` logs appear ✗
-- Combat initialization never occurs despite explicit combat triggers ✗
-- Actions routed to DMNarrator for narrative generation (incorrect flow)
+2. ✅ **Frontend Integration** (`frontend/src/pages/DungeonMaster.jsx`):
+   - Updated to handle `result.combatState` (previously was checking non-existent `result.combat`)
+   - Added skill check display with dice roll results (🎲 icon, success/failure, modifiers breakdown)
+   - Combat UI automatically renders when combat is detected
 
-**What Works**:
-- ✅ CombatManager service (all mechanics functional)
-- ✅ CombatDetector agent (works in isolation)
-- ✅ Combat endpoints (/api/dm/combat/*)
-- ✅ Frontend CombatUI component
-- ✅ Test suite (test-combat-phase2c.js passes)
+3. ✅ **DMOrchestrator** (`backend/src/services/dmOrchestrator.js`):
+   - Combat detection ALREADY implemented (lines 90-136)
+   - CombatDetector.analyze() called on every action
+   - CombatManager.initializeEncounter() triggered when combat detected
+   - Active combat checked before routing actions
 
-**What's Missing**:
-- ❌ Combat detection step in DMOrchestrator.processAction() pipeline
-- ❌ Combat state check before narrative generation
-- ❌ Action routing to CombatManager when combat is active
+**What Now Works**:
+- ✅ User types "I attack the bandit" → Combat initialized
+- ✅ CombatDetector properly analyzes actions for combat triggers
+- ✅ Frontend receives and displays combat state + CombatUI component
+- ✅ Skill checks display with D&D roll mechanics
+- ✅ Full combat flow: detection → initialization → turn-based combat → victory/defeat
 
-**Required Fix**:
-Modify `backend/src/services/dmOrchestrator.js` to add combat detection and routing:
+**Test Coverage**:
+- `backend/tests/integration/test-combat-integration.js` - End-to-end combat testing (requires dev server running)
+- Tests non-combat actions, combat triggers, and skill checks through `/dm/interact`
 
-```javascript
-// STEP 2.5 (NEW): Check for combat triggers or active combat
-const combatCheck = await CombatDetector.detectCombat(input, character);
-if (combatCheck.shouldInitiateCombat) {
-  // Initialize new combat encounter
-  const combat = await CombatManager.initializeEncounter(
-    character.id,
-    combatCheck.combatData,
-    activeQuest?.id
-  );
-  return { narrative: combat.initialNarrative, combat: combat };
-}
+**✅ HEALTH SYSTEM PLANNING COMPLETE**
 
-// Check if character has active combat
-const activeCombat = await CombatManager.getActiveCombat(character.id);
-if (activeCombat) {
-  // Route action to combat system
-  const result = await CombatManager.processCombatAction(
-    activeCombat.encounter.id,
-    input
-  );
-  return { narrative: result.narrative, combat: result };
-}
+**Status:** Research reviewed, database schema designed, comprehensive implementation plan created
 
-// Otherwise, proceed with normal narrative generation (existing flow)
-```
+**Completed:**
+1. ✅ **Research Review:** Comprehensive analysis of `Gamification and Health Research.md`
+   - 169 pages of academic research synthesized
+   - Self-Determination Theory framework adopted
+   - Cooperative > competitive social structures validated
+   - 8-12 week content refresh cycles identified as critical
 
-**Integration Point**: Between Step 2 (narrative summary) and Step 3 (generate response) in DMOrchestrator.processAction()
+2. ✅ **Database Schema:** `migrations/007_health_tracking_system.sql`
+   - `health_activities` - Track all health actions with stat mapping
+   - `wearable_integrations` - API connections (Terra/Thryve/ROOK)
+   - `health_streaks` - Graduated success (Bronze/Silver/Gold)
+   - `character_health_conditions` - Real health affects game (Well-Rested +2, Fatigued -2)
+   - `health_achievements` - Milestone tracking for "Myth Points"
+   - `stat_health_mappings` - Research-based stat-to-activity mappings
+   - `daily_activity_caps` - Anti-exploit (diminishing returns: 1st=100%, 2nd=50%, 3rd=10%)
 
-**Files to Modify**:
-1. `backend/src/services/dmOrchestrator.js` - Add combat detection and routing logic
-2. Add CombatDetector and CombatManager imports
+3. ✅ **Implementation Plan:** `HEALTH_SYSTEM_IMPLEMENTATION_PLAN.md`
+   - 4-phase roadmap (Foundation → Integration → Social → Advanced)
+   - Tiered verification (self-report, wearables, community)
+   - Deep mechanical integration (real health affects combat/quests)
+   - Accessibility features (physical, mental, economic)
+   - Privacy compliance (HIPAA/GDPR from day one)
+   - Success metrics and KPIs defined
 
-**⚠️ HARD GATE**: Must fix combat detection integration before proceeding with health system work. This is a critical user-facing issue - the combat system exists but is unreachable through normal gameplay.
+**Key Implementation Principles (Research-Validated):**
+- **Meaningful Gamification:** Health behaviors genuinely affect game state, not just metrics
+- **Stat-to-Health Mapping:** STR=strength training, DEX=yoga, CON=cardio/sleep, INT=learning, WIS=meditation, CHA=social
+- **Graduated Success:** Bronze (50%) maintains streak, Silver (75%) bonus XP, Gold (100%) max rewards
+- **Anti-Death Spiral:** Failure pauses XP gain (no loss), "Life Happens" mode for disruptions
+- **Combat Integration:** Well-Rested +2, Fatigued -2, workout consistency unlocks combat buffs
+- **Quest Gating:** Advanced quests require demonstrated capability (adaptive difficulty)
+- **Cooperative Social:** Party quests (shared goals), no individual rankings, celebration over comparison
+- **Content Refresh:** Every 8-12 weeks to combat gamification plateau
 
-**📊 CURRENT STATUS: Health System Integration Planning (BLOCKED BY COMBAT INTEGRATION)**
+**📊 CURRENT STATUS: Ready for Phase 1 Implementation (Months 1-3)**
 
-With the combat system *technically* complete but not yet integrated into the main game loop, we have two parallel workstreams:
+**Immediate Next Steps:**
+1. Run migration 007 to create health tracking tables
+2. Build backend services:
+   - `healthActivityService.js` - Log and track activities
+   - `statMappingService.js` - Calculate XP from health activities
+   - `healthConditionService.js` - Apply buffs/debuffs based on real health
+   - `streakService.js` - Track consistency with graduated levels
+3. Create API endpoints:
+   - `POST /api/health/activities` - Log health activity
+   - `GET /api/health/streaks` - Get current streaks
+   - `GET /api/health/conditions` - Get active health buffs/debuffs
+4. Build frontend components:
+   - `HealthActivityLogger.jsx` - Log workouts, meditation, sleep, etc.
+   - `StreakDisplay.jsx` - Show Bronze/Silver/Gold streaks
+   - `HealthConditions.jsx` - Display active buffs/debuffs in combat
+   - `StatProgressCard.jsx` - Show how real health improves D&D stats
 
-1. **IMMEDIATE (Critical Bug)**: Integrate combat detection into DMOrchestrator
-2. **NEXT (After combat fix)**: Health/wellness gamification integration
+**The Ultimate Test:** Removing game mechanics should make health behavior feel less meaningful, not just less measured.
 
-The comprehensive research in `Gamification and Health Research.md` provides the scientific foundation for health integration once combat is fully operational.
+**Reference Documents:**
+- `Gamification and Health Research.md` - 169 pages of academic research & case studies
+- `HEALTH_SYSTEM_IMPLEMENTATION_PLAN.md` - Complete 4-phase implementation roadmap
+- `migrations/007_health_tracking_system.sql` - Database schema for health tracking
 
-**NEXT PHASE: Health-to-RPG Integration (Research Review & Planning)**
+## Core Principle: Player Agency
 
-**Key Research Insights to Implement:**
-- Self-Determination Theory (autonomy, competence, relatedness) over external rewards
-- Cooperative social structures (not competitive leaderboards) for sustainable engagement
-- Meaningful gamification where health behaviors genuinely affect game state
-- Adaptive difficulty accommodating different fitness levels
-- Content refresh cycles (8-12 weeks) to combat gamification plateau
-- Character progression mirroring real health transformation
+**THE MOST SACRED RULE: Never roll dice for the player. Never decide player actions.**
 
-**Integration Approach (from Research.md):**
-1. **Stat-to-Health Mapping:**
-   - STR (Might): Resistance training, progressive overload
-   - DEX (Grace): Yoga, flexibility, coordination work
-   - CON (Endurance): Cardio, sleep quality, nutrition
-   - INT (Clarity): Learning, educational content, skill acquisition
-   - WIS (Serenity): Meditation, journaling, mood tracking
-   - CHA (Radiance): Social activities, community engagement
+This is the heart of Dungeons & Dragons. The player must:
+- Roll their own dice (initiative, attacks, saves, skill checks, damage)
+- Make their own decisions (what to do, where to go, how to act)
+- Feel the weight of their choices and rolls
 
-2. **Real-World Achievement Integration:**
-   - Wearable API integration (Terra/Thryve/ROOK platforms)
-   - Tiered verification (self-report, optional wearables, community verification)
-   - Anti-exploit mechanics (diminishing returns, time-gating, pattern recognition)
-   - Privacy-first architecture (HIPAA/GDPR compliance)
+### Implementation Guidelines
 
-3. **Failure State Design:**
-   - Graduated success levels (Bronze 50%, Silver 75%, Gold 100%)
-   - Pause XP gain vs. XP loss (avoid death spirals)
-   - Alternative paths during setbacks (injury/illness adaptation)
-   - "Life Happens" mode for major disruptions
+**DM Controls:**
+- Enemy actions, attacks, saves, and initiative
+- Environmental effects and random encounters
+- NPC reactions and behaviors
+- World state and consequences
 
-4. **Quest-to-Health Alignment:**
-   - Daily Quests = Habit reinforcement (10-min routine = 50 XP)
-   - Weekly Quests = Consistency tracking (3 workouts = 300 XP)
-   - Monthly Quests = Milestone achievements (50 miles = 2,000 XP)
-   - Epic Quests = Transformation goals (60-day streak = prestige level)
+**Player Controls:**
+- Their character's actions and decisions
+- ALL dice rolls for their character
+- Combat tactics and movement
+- Dialogue choices and social interactions
 
-**Immediate Action Items:**
-- 📖 Review `Gamification and Health Research.md` comprehensively
-- 📋 Create detailed implementation plan for health integration
-- 🏗️ Design database schema for health tracking (wearables, goals, streaks)
-- 🔌 Research API integration platforms (Terra, Thryve, ROOK)
-- 🎮 Design "Deep Mechanical Integration" where combat abilities unlock through real workouts
-- 🧪 Plan accessibility features for diverse fitness levels and disabilities
+**Technical Implementation:**
+- DM narrative PROMPTS for rolls ("Roll for initiative! Roll d20 + DEX")
+- System WAITS for player input (dice roll or manual entry)
+- Frontend provides BOTH options: digital dice roller AND manual input
+- Never auto-roll for player in backend logic
 
-**Success Criteria for Health Integration:**
-- Character stats genuinely reflect real-world health metrics
-- Combat effectiveness tied to workout consistency (well-rested buffs, fatigue debuffs)
-- Quest availability gated by demonstrated capability (adaptive difficulty)
-- Social features emphasize cooperation over competition
-- System accommodates disabilities, mental health challenges, economic constraints
-- Privacy compliance (HIPAA/GDPR) from day one
+**Why This Matters:**
+The tension of rolling a d20, the triumph of a natural 20, the dread of a critical fail - these emotions are what make D&D magical. Removing player dice rolls removes player agency and breaks immersion.
+
+### All Agents Must Follow This
+
+Every AI agent (Story Coordinator, Quest Creator, Lorekeeper, DM Narrator, Combat Detector) must be designed around this principle:
+- **Suggest** choices, never make them
+- **Prompt** for rolls, never auto-roll
+- **React** to player decisions, never override them
+- **Describe** consequences, never undo player actions
 
 ## Key Architecture Decisions (Research-Informed)
 
@@ -443,6 +454,45 @@ When implementing agents, follow these research-validated patterns:
 **Engagement:**
 - 40%+ daily active return rate (vs. 25% typical for habit trackers)
 - 50%+ goal completion rate improvement vs. baseline
+
+## Test Organization
+
+**Directory Structure:**
+```
+backend/tests/
+├── integration/    # End-to-end integration tests
+│   ├── test-combat-integration.js  # Combat system validation
+│   └── test-full-pipeline.js       # Complete workflow testing
+└── utilities/      # Test utilities and helpers
+    └── interactive-dm.js           # Manual CLI testing tool
+
+e2e/                # Playwright E2E tests (project root)
+├── full-flow.spec.js               # Full user flow E2E
+└── e2e-health-test.spec.js         # Health system E2E
+```
+
+**Running Tests:**
+```bash
+# Integration tests (requires dev server running)
+cd backend/tests/integration
+node test-combat-integration.js
+node test-full-pipeline.js
+
+# Manual testing utility
+cd backend/tests/utilities
+node interactive-dm.js
+
+# E2E tests (from project root)
+npx playwright test
+npx playwright test e2e/full-flow.spec.js --headed
+```
+
+**Best Practices:**
+- ✅ All test files organized in dedicated directories (not root)
+- ✅ Integration tests for backend logic validation
+- ✅ E2E tests for full user flow validation
+- ✅ Utility scripts for manual/debugging workflows
+- ⚠️ Tests can be recreated as needed - focus on keeping codebase clean
 
 ## Testing Strategy
 

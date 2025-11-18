@@ -46,6 +46,21 @@ class CharacterService {
       console.error('[CharacterService] Failed to initialize qualities (non-fatal):', qualityError.message);
     }
 
+    // Initialize combat stats for combat system
+    try {
+      const baseHP = 30; // Starting HP for all characters
+      const baseAC = 12 + (characterClass === 'Fighter' ? 3 : characterClass === 'Rogue' ? 2 : 0); // Fighters get +3 AC, Rogues +2
+
+      await pool.query(
+        `INSERT INTO character_combat_stats (character_id, armor_class, max_hit_points, current_hit_points)
+         VALUES ($1, $2, $3, $4)`,
+        [characterId, baseAC, baseHP, baseHP]
+      );
+      console.log(`[CharacterService] Initialized combat stats for character ${characterId} (AC ${baseAC}, HP ${baseHP})`);
+    } catch (combatError) {
+      console.error('[CharacterService] Failed to initialize combat stats (non-fatal):', combatError.message);
+    }
+
     // Get character with computed stats from view
     const character = await this.getCharacterById(characterId);
     return character;

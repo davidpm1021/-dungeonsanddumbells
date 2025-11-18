@@ -7,6 +7,7 @@ import GoalSetup from './pages/GoalSetup';
 import QuestLog from './pages/QuestLog';
 import AgentLab from './pages/AgentLab';
 import DungeonMaster from './pages/DungeonMaster';
+import Health from './pages/Health';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -22,6 +23,9 @@ function App() {
 
         {/* Interactive DM - No auth for easy access */}
         <Route path="/dm" element={<DungeonMaster />} />
+
+        {/* Health & Wellness - No auth for easy access */}
+        <Route path="/health" element={<Health />} />
 
         {/* Protected routes */}
         <Route

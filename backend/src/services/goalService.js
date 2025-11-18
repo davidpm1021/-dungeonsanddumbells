@@ -88,7 +88,11 @@ class GoalService {
   }
 
   /**
-   * Complete a goal (award XP)
+   * Complete a goal (award XP with graduated success)
+   * @param {number} goalId - Goal ID
+   * @param {number} value - Completed value (for quantitative goals)
+   * @param {string} notes - Optional notes
+   * @returns {Object} - Completion data with XP awarded
    */
   async completeGoal(goalId, value = null, notes = null) {
     const goal = await this.getGoalById(goalId);
@@ -99,8 +103,15 @@ class GoalService {
       throw new Error('This goal has already been completed today');
     }
 
-    // Calculate XP based on goal type and frequency
-    let xpAwarded = this.calculateXP(goal);
+    // Calculate graduated success level
+    const graduatedSuccess = this.evaluateGraduatedSuccess(value, goal);
+    const { level, percentage, multiplier } = graduatedSuccess;
+
+    // Calculate base XP based on goal type and frequency
+    const baseXP = this.calculateXP(goal);
+
+    // Apply graduated success multiplier
+    let xpAwarded = Math.floor(baseXP * multiplier);
 
     // Check for streak bonus (every 7 days)
     const streak = await this.getGoalStreak(goalId);
@@ -109,12 +120,12 @@ class GoalService {
       xpAwarded += 100; // 7-day streak bonus
     }
 
-    // Record completion
+    // Record completion with graduated success data
     const completion = await pool.query(
-      `INSERT INTO goal_completions (goal_id, value, notes, xp_awarded)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO goal_completions (goal_id, value, notes, xp_awarded, completion_level, completion_percentage)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [goalId, value, notes, xpAwarded]
+      [goalId, value, notes, xpAwarded, level, percentage]
     );
 
     // Award XP to character
@@ -125,7 +136,7 @@ class GoalService {
     );
 
     // Log narrative event to memory system
-    const eventDescription = this.generateEventDescription(goal, value, notes, streakBonus, streak + 1);
+    const eventDescription = this.generateEventDescription(goal, value, notes, streakBonus, streak + 1, level, percentage);
 
     await memoryManager.storeInWorkingMemory(goal.characterId, {
       eventType: 'goal_completion',
@@ -140,14 +151,23 @@ class GoalService {
         notes: notes,
         streakBonus: streakBonus,
         currentStreak: streak + 1,
-        frequency: goal.frequency
+        frequency: goal.frequency,
+        completionLevel: level,
+        completionPercentage: percentage
       }
     });
 
-    // Update narrative summary with progress
+    // Update narrative summary with progress (include completion level)
+    const levelEmoji = {
+      gold: '🥇',
+      silver: '🥈',
+      bronze: '🥉',
+      incomplete: '⚠️'
+    }[level];
+
     const summaryUpdate = streakBonus
-      ? `You maintained a ${streak + 1}-day streak on "${goal.name}", earning bonus XP! Your ${goal.statMapping} grows stronger.`
-      : `You completed "${goal.name}", growing your ${goal.statMapping}.`;
+      ? `You maintained a ${streak + 1}-day streak on "${goal.name}" ${levelEmoji}, earning bonus XP! Your ${goal.statMapping} grows stronger.`
+      : `You completed "${goal.name}" at ${level.toUpperCase()} level ${levelEmoji}, growing your ${goal.statMapping}.`;
 
     await memoryManager.updateNarrativeSummary(goal.characterId, summaryUpdate);
 
@@ -156,14 +176,15 @@ class GoalService {
       xpAwarded,
       statMapping: goal.statMapping,
       character: updatedCharacter,
-      streakBonus: streakBonus
+      streakBonus: streakBonus,
+      graduatedSuccess: { level, percentage, multiplier }
     };
   }
 
   /**
    * Generate a narrative description for goal completion
    */
-  generateEventDescription(goal, value, notes, streakBonus, currentStreak) {
+  generateEventDescription(goal, value, notes, streakBonus, currentStreak, level = 'gold', percentage = 100) {
     const statNames = {
       STR: 'strength',
       DEX: 'agility',
@@ -173,10 +194,17 @@ class GoalService {
       CHA: 'confidence'
     };
 
-    let description = `You completed "${goal.name}"`;
+    const levelDescriptions = {
+      gold: 'perfectly',
+      silver: 'admirably',
+      bronze: 'adequately',
+      incomplete: 'partially'
+    };
+
+    let description = `You ${levelDescriptions[level] || ''} completed "${goal.name}"`;
 
     if (goal.goalType === 'quantitative' && value) {
-      description += ` (${value}${goal.targetValue ? `/${goal.targetValue}` : ''})`;
+      description += ` (${value}${goal.targetValue ? `/${goal.targetValue}` : ''} - ${percentage.toFixed(0)}%)`;
     }
 
     description += `, strengthening your ${statNames[goal.statMapping] || goal.statMapping.toLowerCase()}.`;
@@ -190,6 +218,65 @@ class GoalService {
     }
 
     return description;
+  }
+
+  /**
+   * Evaluate graduated success level based on completion percentage
+   * Implements research-backed graduated success to prevent "Perfect Day problem"
+   *
+   * @param {number} value - Completed value
+   * @param {Object} goal - Goal object with targetValue
+   * @returns {Object} - { level, percentage, multiplier }
+   */
+  evaluateGraduatedSuccess(value, goal) {
+    // Binary goals always count as 100% when completed
+    if (goal.goalType === 'binary' || goal.goalType === 'streak') {
+      return {
+        level: 'gold',
+        percentage: 100,
+        multiplier: 2.0
+      };
+    }
+
+    // Quantitative goals use graduated success
+    if (!goal.targetValue || goal.targetValue === 0) {
+      // No target value set, default to gold
+      return {
+        level: 'gold',
+        percentage: 100,
+        multiplier: 2.0
+      };
+    }
+
+    // Calculate completion percentage
+    const percentage = (value / goal.targetValue) * 100;
+
+    // Determine level and multiplier based on research thresholds
+    if (percentage >= 100) {
+      return {
+        level: 'gold',
+        percentage: Math.min(percentage, 100), // Cap display at 100%
+        multiplier: 2.0 // Gold: 200% base XP
+      };
+    } else if (percentage >= 75) {
+      return {
+        level: 'silver',
+        percentage,
+        multiplier: 1.5 // Silver: 150% base XP
+      };
+    } else if (percentage >= 50) {
+      return {
+        level: 'bronze',
+        percentage,
+        multiplier: 1.0 // Bronze: 100% base XP (maintains streak)
+      };
+    } else {
+      return {
+        level: 'incomplete',
+        percentage,
+        multiplier: 0.5 // Incomplete: 50% base XP (partial credit)
+      };
+    }
   }
 
   /**

@@ -35,7 +35,9 @@ router.post('/interact', async (req, res) => {
       narrative: result.narrative || 'The world responds to your action...',
       continuation: result.continuation || null,
       sessionId: effectiveSessionId,
-      metadata: result.metadata || {}
+      metadata: result.metadata || {},
+      skillCheckResult: result.skillCheckResult || null,
+      combatState: result.combatState || null
     };
 
     res.json(response);
@@ -177,6 +179,73 @@ router.get('/combat/active', async (req, res) => {
   }
 });
 
+
+/**
+ * POST /dm/combat/:encounterId/submit-initiative
+ * Submit player's initiative roll
+ */
+router.post('/combat/:encounterId/submit-initiative', async (req, res) => {
+  try {
+    const { encounterId } = req.params;
+    const { roll, characterId } = req.body;
+
+    if (!roll) {
+      return res.status(400).json({ error: 'Roll is required' });
+    }
+
+    if (!characterId) {
+      return res.status(400).json({ error: 'Character ID is required' });
+    }
+
+    // Validate roll is between 1-20
+    const rollValue = parseInt(roll);
+    if (isNaN(rollValue) || rollValue < 1 || rollValue > 20) {
+      return res.status(400).json({ error: 'Roll must be a number between 1 and 20' });
+    }
+
+    // Update player's initiative in combat
+    const updatedCombat = await CombatManager.updatePlayerInitiative(
+      parseInt(encounterId),
+      parseInt(characterId),
+      rollValue
+    );
+
+    // Generate narrative about turn order
+    const initiativeOrder = updatedCombat.initiativeOrder;
+    const playerCombatant = initiativeOrder.find(c => c.type === 'player');
+    const firstCombatant = initiativeOrder[0];
+
+    let turnOrderNarrative = `Initiative results! `;
+    initiativeOrder.forEach((c, idx) => {
+      if (c.type === 'player') {
+        turnOrderNarrative += `You rolled ${c.playerRoll} + ${c.dexMod} = ${c.initiative}. `;
+      } else {
+        const enemyRoll = c.initiative - c.dexMod;
+        turnOrderNarrative += `The ${c.name} rolled ${enemyRoll} + ${c.dexMod} = ${c.initiative}. `;
+      }
+    });
+
+    turnOrderNarrative += `\n\n**${firstCombatant.name} goes first!** `;
+
+    if (firstCombatant.type === 'player') {
+      turnOrderNarrative += `It's your turn! What do you do?`;
+    } else {
+      turnOrderNarrative += `The ${firstCombatant.name} prepares to act...`;
+    }
+
+    res.json({
+      combat: updatedCombat,
+      narrative: turnOrderNarrative,
+      roll: rollValue,
+      modifier: playerCombatant.dexMod,
+      total: playerCombatant.initiative
+    });
+
+  } catch (error) {
+    console.error('Submit initiative error:', error);
+    res.status(500).json({ error: 'Failed to submit initiative: ' + error.message });
+  }
+});
 
 /**
  * POST /dm/combat/action

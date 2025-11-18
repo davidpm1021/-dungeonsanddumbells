@@ -31,9 +31,14 @@ class CombatManager {
    * @param {number} questId - Optional quest ID this combat relates to
    * @returns {Promise<Object>} - Created combat encounter
    */
-  async initializeEncounter(characterId, combatData, questId = null) {
+  async initializeEncounter(characterId, combatData, questId = null, playerInitiativeRoll = null) {
     try {
       console.log('[CombatManager] Initializing combat:', combatData.enemies.length, 'enemies');
+      if (playerInitiativeRoll !== null) {
+        console.log('[CombatManager] Using player initiative roll:', playerInitiativeRoll);
+      } else {
+        console.log('[CombatManager] No player roll - using placeholder (player will roll)');
+      }
 
       // Get character stats for initiative
       const charResult = await db.query(
@@ -41,7 +46,7 @@ class CombatManager {
           cs.id, cs.name, cs.class, cs.level, cs.dex,
           ccs.armor_class, ccs.max_hit_points, ccs.current_hit_points
         FROM character_stats cs
-        JOIN character_combat_stats ccs ON cs.id = ccs.character_id
+        LEFT JOIN character_combat_stats ccs ON cs.id = ccs.character_id
         WHERE cs.id = $1`,
         [characterId]
       );
@@ -52,8 +57,30 @@ class CombatManager {
 
       const character = charResult.rows[0];
 
-      // Roll initiative for all combatants
-      const initiativeOrder = this.rollInitiative(character, combatData.enemies);
+      // Auto-initialize combat stats if missing
+      if (!character.armor_class || !character.max_hit_points) {
+        console.log(`[CombatManager] Character ${characterId} missing combat stats - auto-initializing`);
+        const baseHP = 30;
+        const baseAC = 12 + (character.class === 'Fighter' ? 3 : character.class === 'Rogue' ? 2 : 0);
+
+        await db.query(
+          `INSERT INTO character_combat_stats (character_id, armor_class, max_hit_points, current_hit_points)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (character_id) DO UPDATE
+           SET armor_class = EXCLUDED.armor_class,
+               max_hit_points = EXCLUDED.max_hit_points,
+               current_hit_points = EXCLUDED.current_hit_points`,
+          [characterId, baseAC, baseHP, baseHP]
+        );
+
+        // Update character object with initialized values
+        character.armor_class = baseAC;
+        character.max_hit_points = baseHP;
+        character.current_hit_points = baseHP;
+      }
+
+      // Roll initiative for all combatants (pass player roll if provided)
+      const initiativeOrder = this.rollInitiative(character, combatData.enemies, playerInitiativeRoll);
 
       // Prepare enemies JSON
       const enemiesJson = combatData.enemies.map(enemy => ({
@@ -117,20 +144,24 @@ class CombatManager {
    *
    * @param {Object} character - Player character data
    * @param {Array} enemies - Enemy data from CombatDetector
+   * @param {number} playerRoll - Optional player's d20 roll (if null, uses neutral placeholder)
    * @returns {Array} - Initiative order sorted highest to lowest
    */
-  rollInitiative(character, enemies) {
+  rollInitiative(character, enemies, playerRoll = null) {
     const combatants = [];
 
-    // Player initiative (d20 + DEX modifier)
+    // Player initiative
     const playerDexMod = Math.floor((character.dex - 10) / 2);
-    const playerInitiative = this.rollD20(false, false) + playerDexMod;
+    const playerInitiative = playerRoll !== null
+      ? playerRoll + playerDexMod  // Use player's roll
+      : 10 + playerDexMod;          // Neutral placeholder (10 is average)
 
     combatants.push({
       name: character.name,
       type: 'player',
       initiative: playerInitiative,
-      dexMod: playerDexMod
+      dexMod: playerDexMod,
+      needsRoll: playerRoll === null // Flag indicates player hasn't rolled yet
     });
 
     // Enemy initiatives
@@ -189,6 +220,74 @@ class CombatManager {
   }
 
   /**
+   * Update player's initiative with their actual roll
+   *
+   * @param {number} encounterId - Combat encounter ID
+   * @param {number} characterId - Player character ID
+   * @param {number} playerRoll - Player's d20 roll (1-20)
+   * @returns {Promise<Object>} - Updated combat encounter
+   */
+  async updatePlayerInitiative(encounterId, characterId, playerRoll) {
+    try {
+      console.log('[CombatManager] Updating player initiative - roll:', playerRoll);
+
+      // Get current combat state
+      const result = await db.query(
+        'SELECT * FROM combat_encounters WHERE id = $1 AND character_id = $2 AND status = $3',
+        [encounterId, characterId, 'active']
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('Combat encounter not found or already ended');
+      }
+
+      const encounter = result.rows[0];
+      const initiativeOrder = encounter.initiative_order;
+
+      // Find player in initiative order
+      const playerIndex = initiativeOrder.findIndex(c => c.type === 'player');
+      if (playerIndex === -1) {
+        throw new Error('Player not found in initiative order');
+      }
+
+      const player = initiativeOrder[playerIndex];
+      const totalInitiative = playerRoll + player.dexMod;
+
+      // Update player's initiative
+      initiativeOrder[playerIndex] = {
+        ...player,
+        initiative: totalInitiative,
+        needsRoll: false,
+        playerRoll: playerRoll // Store raw roll for reference
+      };
+
+      // Re-sort by initiative (highest first)
+      initiativeOrder.sort((a, b) => b.initiative - a.initiative);
+
+      // Find new current turn index (whoever is first in new order)
+      const newTurnIndex = 0;
+
+      // Update database
+      await db.query(
+        `UPDATE combat_encounters
+        SET initiative_order = $1, current_turn_index = $2
+        WHERE id = $3`,
+        [JSON.stringify(initiativeOrder), newTurnIndex, encounterId]
+      );
+
+      console.log('[CombatManager] Initiative updated! Player rolled', playerRoll, '+ DEX', player.dexMod, '=', totalInitiative);
+      console.log('[CombatManager] New turn order:', initiativeOrder.map(c => `${c.name} (${c.initiative})`).join(', '));
+
+      // Return updated combat state
+      return this.getActiveCombat(characterId);
+
+    } catch (error) {
+      console.error('[CombatManager] Error updating player initiative:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Process a combat action (attack, move, etc.)
    *
    * @param {number} encounterId - Combat encounter ID
@@ -214,7 +313,7 @@ class CombatManager {
           cs.id, cs.name, cs.class, cs.str, cs.dex, cs.con,
           ccs.proficiency_bonus
         FROM character_stats cs
-        JOIN character_combat_stats ccs ON cs.id = ccs.character_id
+        LEFT JOIN character_combat_stats ccs ON cs.id = ccs.character_id
         WHERE cs.id = $1`,
         [encounter.characterId]
       );

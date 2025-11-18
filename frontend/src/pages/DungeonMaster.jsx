@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import api from '../services/api';
+import api, { dm } from '../services/api';
 import CombatUI from '../components/CombatUI';
+import DiceRoller from '../components/DiceRoller';
 
 export default function DungeonMaster() {
   const [messages, setMessages] = useState([]);
@@ -24,6 +25,8 @@ export default function DungeonMaster() {
   // Combat state
   const [combat, setCombat] = useState(null);
   const [combatConditions, setCombatConditions] = useState([]);
+  // Pending roll state (initiative, attack, skill check)
+  const [pendingRoll, setPendingRoll] = useState(null);
 
   const GENRE_PRESETS = {
     dark_fantasy: {
@@ -95,6 +98,28 @@ export default function DungeonMaster() {
       return () => clearInterval(interval);
     }
   }, [setupStep, character.id]);
+
+  // Check if initiative roll is needed
+  useEffect(() => {
+    if (combat?.initiativeOrder) {
+      const playerCombatant = combat.initiativeOrder.find(c => c.type === 'player');
+      if (playerCombatant?.needsRoll) {
+        // Player needs to roll initiative
+        const dexMod = Math.floor((character.dex - 10) / 2);
+        setPendingRoll({
+          type: 'initiative',
+          encounterId: combat.encounter?.id || combat.id,
+          modifier: dexMod,
+          modifierLabel: 'DEX'
+        });
+      } else {
+        // No roll needed
+        setPendingRoll(null);
+      }
+    } else {
+      setPendingRoll(null);
+    }
+  }, [combat, character.dex]);
 
   const addMessage = (type, content, metadata = {}) => {
     setMessages(prev => [...prev, {
@@ -199,6 +224,42 @@ export default function DungeonMaster() {
     }
   };
 
+  const handleInitiativeSubmit = async ({ roll, total, modifier }) => {
+    if (!pendingRoll || pendingRoll.type !== 'initiative') return;
+
+    setIsLoading(true);
+    try {
+      const response = await dm.submitInitiative(
+        pendingRoll.encounterId,
+        roll,
+        character.id
+      );
+
+      const result = response.data;
+
+      // Display initiative results narrative
+      if (result.narrative) {
+        addMessage('dm', result.narrative);
+      }
+
+      // Update combat state with new initiative order
+      if (result.combat) {
+        setCombat(result.combat);
+        if (result.combat.activeConditions) {
+          setCombatConditions(result.combat.activeConditions);
+        }
+      }
+
+      // Clear pending roll
+      setPendingRoll(null);
+
+    } catch (error) {
+      addMessage('system', 'Failed to submit initiative: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -254,6 +315,18 @@ export default function DungeonMaster() {
         }
       }
 
+      // Show skill check result if present
+      if (result.skillCheckResult) {
+        const scr = result.skillCheckResult;
+        const emoji = scr.success ? '✅' : '❌';
+        const resultText = scr.success ? 'SUCCESS' : 'FAILURE';
+        addMessage('system',
+          `🎲 ${scr.skillType} Check: ${emoji} ${resultText}\n` +
+          `Roll: ${scr.roll} + modifiers = ${scr.total} vs DC ${scr.dc}\n` +
+          `${scr.modifiersBreakdown}`
+        );
+      }
+
       if (result.metadata?.questTriggered) {
         addMessage('system', `Quest Opportunity Detected: ${result.metadata.questSuggestion}`);
       }
@@ -263,10 +336,40 @@ export default function DungeonMaster() {
       }
 
       // Check if DM response initiated combat
-      if (result.combat || result.combatInitiated) {
-        setCombat(result.combat);
-        if (result.combat?.activeConditions) {
-          setCombatConditions(result.combat.activeConditions);
+      if (result.combatState) {
+        setCombat(result.combatState);
+        if (result.combatState.activeConditions) {
+          setCombatConditions(result.combatState.activeConditions);
+        }
+      } else if (result.metadata?.combatTriggered && !character.id) {
+        // Combat was detected but can't be initialized without a character ID
+        // Auto-create a database character and retry the action
+        addMessage('system', '⚔️ Combat Detected! Creating character for turn-based combat...');
+        try {
+          const newChar = await api.characters.create(character.name, character.class);
+          const fullChar = { ...character, ...newChar.data };
+          setCharacter(fullChar);
+          addMessage('system', `✅ Character "${fullChar.name}" created! Initializing combat...`);
+
+          // Retry the action with the new character that has an ID
+          const retryResponse = await api.dm.interact({
+            character: fullChar,
+            action: playerAction,
+            worldContext,
+            recentMessages: messages.slice(-10),
+            sessionId: sessionId
+          });
+
+          if (retryResponse.data.combatState) {
+            setCombat(retryResponse.data.combatState);
+            if (retryResponse.data.combatState.activeConditions) {
+              setCombatConditions(retryResponse.data.combatState.activeConditions);
+            }
+            addMessage('system', '⚔️ Combat initialized! Use the combat UI below to take actions.');
+          }
+        } catch (createError) {
+          console.error('Failed to create character:', createError);
+          addMessage('system', '❌ Failed to create character. You need to log in or register first to use combat features.');
         }
       }
 
@@ -502,6 +605,20 @@ export default function DungeonMaster() {
               onAction={handleCombatAction}
               isLoading={isLoading}
             />
+          )}
+
+          {/* Dice Roller - Initiative, Attack, Skill Checks */}
+          {pendingRoll && (
+            <div className="max-w-4xl mx-auto mb-4">
+              <DiceRoller
+                diceType="d20"
+                modifier={pendingRoll.modifier}
+                modifierLabel={pendingRoll.modifierLabel}
+                purpose={pendingRoll.type}
+                onRollSubmit={handleInitiativeSubmit}
+                isLoading={isLoading}
+              />
+            </div>
           )}
 
       {/* Messages */}

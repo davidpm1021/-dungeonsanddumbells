@@ -175,6 +175,59 @@ export const monitoring = {
     api.get('/monitoring/dashboard', { params: { days } }),
 };
 
+// Health endpoints
+export const health = {
+  // Activity tracking
+  logActivity: (activityData) =>
+    api.post('/health/activities', activityData),
+
+  getActivities: (filters = {}) =>
+    api.get('/health/activities', { params: filters }),
+
+  getActivitySummary: (startDate = null, endDate = null) =>
+    api.get('/health/activities/summary', { params: { startDate, endDate } }),
+
+  deleteActivity: (activityId) =>
+    api.delete(`/health/activities/${activityId}`),
+
+  // Streaks
+  getStreaks: () =>
+    api.get('/health/streaks'),
+
+  // Conditions (buffs/debuffs)
+  getConditions: () =>
+    api.get('/health/conditions'),
+
+  refreshConditions: () =>
+    api.post('/health/conditions/refresh'),
+
+  removeCondition: (conditionId) =>
+    api.delete(`/health/conditions/${conditionId}`),
+
+  // Comprehensive stats
+  getStats: (period = 'week') =>
+    api.get('/health/stats', { params: { period } }),
+};
+
+// DM endpoints
+export const dm = {
+  interact: (data) =>
+    api.post('/dm/interact', data),
+
+  quest: (character) =>
+    api.post('/dm/quest', { character }),
+
+  // Combat endpoints
+  getActiveCombat: (characterId) =>
+    api.get('/dm/combat/active', { params: { characterId } }),
+
+  submitInitiative: (encounterId, roll, characterId) =>
+    api.post(`/dm/combat/${encounterId}/submit-initiative`, { roll, characterId }),
+
+  submitCombatAction: (encounterId, action) =>
+    api.post('/dm/combat/action', { encounterId, action }),
+};
+
 // Agent Lab endpoints (DM testing/evaluation)
 export const agentLab = {
   testStoryCoordinator: (character = {}, activeQuestCount = 0) =>
