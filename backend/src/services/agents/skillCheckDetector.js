@@ -36,7 +36,7 @@ class SkillCheckDetector {
 
       // Use Haiku for fast, cheap detection
       const response = await claudeAPI.call({
-        model: 'claude-haiku-3-20240307',
+        model: 'claude-3-haiku-20240307',
         system: this.getSystemPrompt(),
         messages: [{ role: 'user', content: prompt }],
         maxTokens: 300,

@@ -35,7 +35,7 @@ class CombatDetector {
 
       // Use Haiku for fast, cheap detection
       const response = await claudeAPI.call({
-        model: 'claude-haiku-3-20240307',
+        model: 'claude-3-haiku-20240307',
         system: this.getSystemPrompt(),
         messages: [{ role: 'user', content: prompt }],
         maxTokens: 500,
@@ -70,16 +70,19 @@ Your job is to analyze player actions and determine if they should trigger a com
 ## COMBAT TRIGGER CRITERIA
 
 Combat is triggered when:
+- Player uses combat verbs: attack, fight, strike, charge, engage, assault, battle, brawl
 - Player explicitly attacks an enemy or NPC
 - Enemy/NPC attacks the player
 - Player takes aggressive action that would provoke combat (threatening with weapon drawn, breaking into hostile territory)
 - Narrative context indicates imminent danger (ambush, trap sprung, cornered by enemies)
 
+**IMPORTANT:** Words like "fight", "attack", "charge", "engage" ALWAYS mean physical combat, not negotiation.
+
 Combat is NOT triggered when:
-- Player is just talking or negotiating (even if tense)
+- Player is just talking or negotiating (even if tense) - must use words like "talk", "negotiate", "persuade"
 - Player is exploring without immediate threat
 - Enemies are present but not hostile yet (guards watching, but not attacking)
-- The situation can be resolved through skill checks or roleplay
+- Player explicitly states non-combat resolution (e.g., "I try to talk my way out")
 
 ## ENEMY IDENTIFICATION
 
@@ -156,6 +159,19 @@ If no combat:
 {
   "combatTriggered": false,
   "reasoning": "Player is avoiding combat, not initiating it"
+}
+
+**Player:** "I fight the guard"
+**Response:**
+{
+  "combatTriggered": true,
+  "reasoning": "Player used combat verb 'fight' - initiating physical confrontation",
+  "enemies": [
+    {"name": "Guard", "type": "humanoid", "ac": 16, "hp": 25, "maxHp": 25, "attackBonus": 5, "damageRoll": "1d8+3", "zone": "close", "description": "City guard in chainmail with spear"}
+  ],
+  "playerZone": "close",
+  "encounterDifficulty": "medium",
+  "narrativeSetup": "You engage the guard in combat!"
 }
 
 **Player:** "I continue down the forest path"
@@ -265,8 +281,8 @@ If no combat:
     const actionLower = action.toLowerCase();
     const contextLower = (worldContext || '').toLowerCase();
 
-    // Explicit attack keywords
-    if (actionLower.match(/\b(attack|strike|stab|slash|punch|kick|shoot|fire at)\b/)) {
+    // Explicit attack keywords - INCLUDING "fight", "charge", "engage"
+    if (actionLower.match(/\b(attack|fight|strike|stab|slash|punch|kick|shoot|fire at|charge|engage|assault|battle|brawl)\b/)) {
       return {
         combatTriggered: true,
         reasoning: 'Player initiated combat (fallback detection)',
@@ -325,3 +341,4 @@ If no combat:
 }
 
 module.exports = new CombatDetector();
+
