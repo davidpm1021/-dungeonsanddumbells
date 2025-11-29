@@ -236,6 +236,12 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => navigate('/dm')}
+                className="glass-button text-sm bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/30 hover:border-purple-500/50"
+              >
+                🎲 DM Mode
+              </button>
+              <button
                 onClick={() => setShowStats(!showStats)}
                 className="glass-button text-sm"
               >

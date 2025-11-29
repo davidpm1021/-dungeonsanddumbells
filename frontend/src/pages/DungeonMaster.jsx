@@ -1,9 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api, { dm } from '../services/api';
+import { characters } from '../services/api';
+import useAuthStore from '../stores/authStore';
 import CombatUI from '../components/CombatUI';
 import DiceRoller from '../components/DiceRoller';
 
 export default function DungeonMaster() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +74,7 @@ export default function DungeonMaster() {
     scrollToBottom();
   }, [messages]);
 
-  
+
   // Check for active combat
   const checkActiveCombat = async () => {
     if (!character.id) return;
@@ -130,6 +135,25 @@ export default function DungeonMaster() {
       ...metadata
     }]);
   };
+
+  // Load user's character if logged in
+  useEffect(() => {
+    const loadCharacter = async () => {
+      if (user) {
+        try {
+          const response = await characters.getMe();
+          if (response.data) {
+            setCharacter(response.data);
+            setSetupStep('ready'); // Skip setup if character exists
+            addMessage('system', `Welcome back, ${response.data.name}! Your adventure continues...`);
+          }
+        } catch (error) {
+          console.log('No character found, using setup flow');
+        }
+      }
+    };
+    loadCharacter();
+  }, [user]);
 
   const handleWorldSetup = () => {
     const world = customWorld.trim() || (selectedGenre ? GENRE_PRESETS[selectedGenre].sample : '');
@@ -590,7 +614,15 @@ export default function DungeonMaster() {
       {/* Header */}
       <div className="bg-gray-800 p-4 border-b border-gray-700">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-yellow-400">Dungeon Master</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors flex items-center gap-2"
+            >
+              ← Dashboard
+            </button>
+            <h1 className="text-2xl font-bold text-yellow-400">Dungeon Master</h1>
+          </div>
           <div className="text-gray-300 text-sm">
             {character.name} the {character.class} | Level {character.level}
           </div>
