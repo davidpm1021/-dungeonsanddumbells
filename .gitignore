@@ -2,6 +2,9 @@
 node_modules/
 package-lock.json
 
+# Documentation - keep out of Git for security
+*.md
+
 # Environment variables
 .env
 .env.local
