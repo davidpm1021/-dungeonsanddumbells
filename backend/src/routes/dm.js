@@ -5,12 +5,15 @@ const StoryCoordinator = require('../services/agents/storyCoordinator');
 const QuestCreator = require('../services/agents/questCreator');
 const CombatManager = require('../services/combatManager');
 const ConditionService = require('../services/conditionService');
+const SkillCheckService = require('../services/skillCheckService');
+const HealthConditionService = require('../services/healthConditionService');
+const { optionalAuth } = require('../middleware/auth');
 
 /**
  * POST /dm/interact
  * Process player action through full multi-agent pipeline
  */
-router.post('/interact', async (req, res) => {
+router.post('/interact', optionalAuth, async (req, res) => {
   try {
     const { character, action, worldContext, recentMessages, sessionId } = req.body;
 
@@ -18,12 +21,18 @@ router.post('/interact', async (req, res) => {
       return res.status(400).json({ error: 'Character and action are required' });
     }
 
+    // Enhance character with userId from auth if available
+    const enhancedCharacter = {
+      ...character,
+      userId: req.user?.userId || character.userId || null
+    };
+
     // Generate session ID if not provided
     const effectiveSessionId = sessionId || `session_${character.name}_${Date.now()}`;
 
     // Process through full orchestration pipeline
     const result = await DMOrchestrator.processAction({
-      character,
+      character: enhancedCharacter,
       action,
       worldContext: worldContext || '',
       recentMessages: recentMessages || [],
@@ -37,7 +46,8 @@ router.post('/interact', async (req, res) => {
       sessionId: effectiveSessionId,
       metadata: result.metadata || {},
       skillCheckResult: result.skillCheckResult || null,
-      combatState: result.combatState || null
+      combatState: result.combatState || null,
+      pendingRoll: result.pendingRoll || null // For player agency dice rolling
     };
 
     res.json(response);
@@ -278,6 +288,141 @@ router.post('/combat/action', async (req, res) => {
   } catch (error) {
     console.error('Combat action error:', error);
     res.status(500).json({ error: 'Failed to process combat action: ' + error.message });
+  }
+});
+
+/**
+ * POST /dm/resolve-roll
+ * Resolve a pending skill check/attack/initiative roll with player's dice result
+ */
+router.post('/resolve-roll', optionalAuth, async (req, res) => {
+  try {
+    const { characterId, rollType, roll, skillType, dc, encounterId } = req.body;
+
+    if (!characterId || !rollType || roll === undefined) {
+      return res.status(400).json({ error: 'characterId, rollType, and roll are required' });
+    }
+
+    // Validate roll is between 1-20
+    const rollValue = parseInt(roll);
+    if (isNaN(rollValue) || rollValue < 1 || rollValue > 20) {
+      return res.status(400).json({ error: 'Roll must be a number between 1 and 20' });
+    }
+
+    let result = {};
+
+    if (rollType === 'skill_check' && skillType && dc) {
+      // Resolve skill check using player's roll
+      const checkResult = await SkillCheckService.resolveCheck(
+        parseInt(characterId),
+        skillType,
+        parseInt(dc),
+        rollValue
+      );
+
+      // Generate narrative based on result
+      const narrativeResult = checkResult.success
+        ? `Your ${skillType} check succeeds! (${checkResult.total} vs DC ${dc})`
+        : `Your ${skillType} check fails. (${checkResult.total} vs DC ${dc})`;
+
+      result = {
+        success: true,
+        checkResult,
+        narrative: narrativeResult
+      };
+
+    } else if (rollType === 'initiative' && encounterId) {
+      // Resolve initiative roll
+      const combatResult = await CombatManager.updatePlayerInitiative(
+        parseInt(encounterId),
+        parseInt(characterId),
+        rollValue
+      );
+
+      result = {
+        success: true,
+        combatState: combatResult,
+        narrative: `Initiative set to ${rollValue}!`
+      };
+
+    } else if (rollType === 'attack' && encounterId) {
+      // Attack rolls handled separately through combat action
+      result = {
+        success: true,
+        narrative: `Attack roll: ${rollValue}`,
+        roll: rollValue
+      };
+    }
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Resolve roll error:', error);
+    res.status(500).json({ error: 'Failed to resolve roll: ' + error.message });
+  }
+});
+
+/**
+ * GET /dm/welcome/:characterId
+ * Get the stored welcome narrative for a character
+ */
+router.get('/welcome/:characterId', async (req, res) => {
+  try {
+    const { characterId } = req.params;
+    const memoryManager = require('../services/memoryManager');
+    const pool = require('../config/database');
+
+    // First try to get welcome narrative from working memory
+    const memories = await memoryManager.getWorkingMemory(parseInt(characterId));
+    const welcomeMemory = memories.find(m => m.eventType === 'welcome_narrative');
+
+    if (welcomeMemory && welcomeMemory.eventDescription) {
+      return res.json({
+        narrative: welcomeMemory.eventDescription,
+        source: 'memory'
+      });
+    }
+
+    // Try to get from world_state narrative summary
+    const worldStateResult = await pool.query(
+      'SELECT narrative_summary FROM world_state WHERE character_id = $1',
+      [parseInt(characterId)]
+    );
+
+    if (worldStateResult.rows.length > 0 && worldStateResult.rows[0].narrative_summary) {
+      return res.json({
+        narrative: worldStateResult.rows[0].narrative_summary,
+        source: 'world_state'
+      });
+    }
+
+    // No stored narrative found
+    res.json({ narrative: null });
+
+  } catch (error) {
+    console.error('Get welcome narrative error:', error);
+    res.json({ narrative: null, error: error.message });
+  }
+});
+
+/**
+ * GET /dm/health-conditions/:characterId
+ * Get active health conditions for a character (fitness affects combat)
+ */
+router.get('/health-conditions/:characterId', async (req, res) => {
+  try {
+    const { characterId } = req.params;
+
+    const conditions = await HealthConditionService.getActiveConditions(parseInt(characterId));
+
+    res.json({
+      conditions,
+      statModifiers: await HealthConditionService.calculateTotalStatModifiers(parseInt(characterId))
+    });
+
+  } catch (error) {
+    console.error('Get health conditions error:', error);
+    res.status(500).json({ error: 'Failed to get health conditions' });
   }
 });
 

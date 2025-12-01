@@ -170,10 +170,10 @@ class CharacterQualitiesService {
         }
       }
 
-      // Pillar-specific progress
-      if (quest.theme && quest.theme.includes('pillar')) {
-        await this.incrementQuality(characterId, 'pillar_knowledge', 1);
-        qualitiesSet.pillar_knowledge = await this.getQuality(characterId, 'pillar_knowledge');
+      // Foundation-specific progress
+      if (quest.theme && quest.theme.includes('foundation')) {
+        await this.incrementQuality(characterId, 'foundation_knowledge', 1);
+        qualitiesSet.foundation_knowledge = await this.getQuality(characterId, 'foundation_knowledge');
       }
 
       return qualitiesSet;
@@ -195,7 +195,7 @@ class CharacterQualitiesService {
       await this.setQuality(characterId, 'tutorial_complete', 0);
       await this.setQuality(characterId, 'first_quest_done', 0);
       await this.setQuality(characterId, 'main_quests_completed', 0);
-      await this.setQuality(characterId, 'pillar_knowledge', 0);
+      await this.setQuality(characterId, 'foundation_knowledge', 0);
 
       console.log(`[CharacterQualities] Initialized qualities for character ${characterId}`);
     } catch (error) {

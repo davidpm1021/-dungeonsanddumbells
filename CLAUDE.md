@@ -9,225 +9,50 @@ Keep document creation to a minimum and file structure clean.
 
 **Dumbbells & Dragons** is an AI-driven RPG that gamifies wellness goals into persistent narrative experiences. Users complete real-world health goals (exercise, meditation, reading) which translates into fantasy character progression. The system maintains story coherence across weeks to months using a multi-agent AI architecture with explicit memory systems.
 
-**Current Status:** Phase 4-5 Complete! Multi-agent system operational - NOW PIVOTING to Dynamic Narrative System (PRD Addendum)
+---
 
-**⚠️ CRITICAL SHIFT:** Product direction has evolved from linear quest system to MMO-style dynamic narrative (see PRD Addendum.md). This changes the scope significantly but leverages the solid foundation already built.
+## 🎯 CURRENT FOCUS: Frontend Redesign
 
-**Completed:**
-- ✅ Backend project structure initialized
-- ✅ Dependencies installed (Express, PostgreSQL, Redis, JWT, bcrypt)
-- ✅ Database configuration and connection setup
-- ✅ PostgreSQL 16 installed and database created
-- ✅ Migration system created and working
-- ✅ Migrations successfully run (users, characters, goals, goal_completions)
-- ✅ XP calculation function and character_stats view deployed
-- ✅ Goal streak tracking function deployed
-- ✅ Dev server running and responding to health checks
-- ✅ Authentication system fully implemented and tested
-  - JWT-based authentication with 7-day expiry
-  - Password hashing with bcrypt (10 rounds)
-  - Registration with email/username validation
-  - Login with email or username support
-  - Protected route middleware
-  - /api/auth/register, /login, /me, /logout endpoints
+**Status:** Sprint 1 - Journal Core
+**Reference:** `frontend-redesign-prd.md` | `SPRINTS.md`
 
-- ✅ Character and goal services fully implemented
-  - Character creation with 3 classes (Fighter, Mage, Rogue)
-  - Character retrieval with computed stats and XP breakdown
-  - XP progression system (100, 120, 140... cost per stat point)
-  - Goal creation with 3 types (binary, quantitative, streak)
-  - Goal completion with XP rewards
-  - Streak tracking with 7-day bonuses
-  - 8 goal endpoints (create, list, get, complete, streak, completions, update, delete)
+### The Goal
+Transform from "habit tracker with D&D skin" → **"Adventurer's Journal"** experience
 
-- ✅ Frontend foundation initialized
-  - Vite + React setup complete
-  - Tailwind CSS configured with custom theme (stat colors, fonts)
-  - Component utility classes (.stat-badge, .btn, .card, .input)
-  - Directory structure (stores, services, pages, components, utils)
-  - Dependencies: zustand, react-router-dom, axios
+### Core Metaphor
+The UI should feel like a player's notebook during a D&D campaign:
+- **Documentary, not administrative** — Recording a lived experience, not managing tasks
+- **Story-forward** — Narrative is primary; tracking is secondary
+- **Integrated habits** — Completing a workout becomes a sentence in today's entry
 
-- ✅ **Phase 3-4: Multi-Agent AI System (ALL 5 AGENTS OPERATIONAL)**
-  - Story Coordinator - Quest need evaluation with fallback logic
-  - Quest Creator - Generate narrative quests from templates or AI
-  - Lorekeeper - Validate content against World Bible (consistency scoring)
-  - Consequence Engine - Generate narrative outcomes for completed quests
-  - Memory Manager Agent - Compress old events into episode summaries
-  - Claude API service with retry logic, rate limiting, cost tracking
-  - Model Router with intelligent routing (Haiku, Sonnet 3.5, Sonnet 4.5)
-  - Prompt Builder with XML-structured prompts for all agents
-  - Agent logging to database with performance tracking
+### Active Sprint Tasks
+See `SPRINTS.md` for detailed task breakdown. Current sprint: **Journal Core**
 
-- ✅ **Phase 5: Memory & Narrative Systems**
-  - 3-tier memory hierarchy (working, episode, long-term)
-  - Narrative RAG with keyword-based retrieval (vector embeddings Phase 6)
-  - Narrative summary system (rolling 500-word summaries)
-  - World Bible integration (immutable ground truth)
-  - Quest service with storylet structure (prerequisites/effects)
-  - Character qualities tracking for narrative progression
+---
 
-- ✅ **Redis L1 Caching Layer**
-  - Redis client with graceful fallback to PostgreSQL
-  - Multi-tier caching service (L1 Redis + PostgreSQL, L3 prompt components)
-  - CachingLayer service with hit rate tracking
-  - Claude API integrated with L1 cache (24hr TTL)
-  - Server graceful shutdown handling
-  - **Measured Performance:** 94.6% cache hit rate on Story Coordinator
+## ✅ Backend Complete
 
-- ✅ **Monitoring Dashboard (Phase 1 requirement)**
-  - Comprehensive monitoring endpoints at /api/monitoring/*
-  - Real-time cache statistics (L1, L2, L3, combined hit rates)
-  - Agent performance metrics (calls, success rate, latency, cost)
-  - Lorekeeper validation tracking
-  - Latency percentiles (P50, P95, P99)
-  - Cost per active user tracking
-  - Unified dashboard endpoint with all metrics
-  - **Current Metrics:** $0.0947/user/day (within <$0.10 target!)
+The backend is fully operational and tested:
 
-- ✅ **Phase 6: Vector Embeddings (Ready for pgvector)**
-  - Migration 004 created for pgvector extension (awaiting manual installation)
-  - PGVECTOR_INSTALL.md guide created with Windows installation steps
-  - Hybrid retrieval implemented in narrativeRAG.js (semantic + keyword)
-  - OpenAI text-embedding-3-small integration (1536 dimensions)
-  - Graceful fallback to keyword-only when pgvector unavailable
-  - storeEventWithEmbedding() for future embedding storage
-  - find_similar_events() and find_similar_memories() SQL functions ready
-  - L2 semantic cache prepared (>0.85 similarity threshold)
+- **Authentication:** JWT-based auth with registration/login/logout
+- **Characters:** 3 classes, XP progression, computed stats
+- **Goals:** 3 types (binary, quantitative, streak), XP rewards, streak tracking
+- **Multi-Agent AI System:** 5 specialized agents operational
+  - Story Coordinator, Quest Creator, Lorekeeper, Consequence Engine, Memory Manager
+  - Claude API with retry logic, rate limiting, cost tracking
+  - Model Router (Haiku/Sonnet 3.5/Sonnet 4.5)
+- **Memory System:** 3-tier hierarchy (working, episode, long-term)
+- **Combat System:** Full D&D 5e mechanics with conditions, zones, initiative
+- **Caching:** Redis L1 (94.6% hit rate), L3 prompt components
+- **Monitoring:** Cost tracking ($0.0947/user/day), latency percentiles
+- **DM Narrator:** Dynamic response variation based on input type
+- **Skill Checks:** Automatic detection with advantage/disadvantage
 
-- ✅ **Frontend Data Layer Complete**
-  - Quest store (questStore.js) - manage quests, active quest, history
-  - Narrative store (narrativeStore.js) - memory, episodes, world state
-  - API service expanded with quest, narrative, and monitoring endpoints
-  - All CRUD operations for auth, characters, goals, quests, narrative
-  - Monitoring endpoints for health, cache, agents, latency, cost
-
-- ✅ **Integration Test Suite**
-  - backend/tests/integration/test-full-pipeline.js - End-to-end testing
-  - backend/tests/integration/test-combat-integration.js - Combat detection validation
-  - Tests: auth → character → goals → quest generation → completion → memory
-  - Server verified operational with Redis + PostgreSQL
-  - Monitoring dashboard accessible and functional
-
-- ✅ **Basic Quest Objective System (Sprint 6 Foundation)**
-  - QuestCard component with objective display and tracking
-  - Individual objective completion with rewards (+XP, +stat)
-  - Frontend handlers for objective clicks
-  - Backend endpoint for completing objectives
-  - Quest completion blocked until all objectives done
-
-- ✅ **Phase 2: D&D 5e Combat System (COMPLETE)**
-  - **Phase 2A:** Combat Detector Agent - Identifies combat triggers in narrative
-  - **Phase 2B:** Enhanced Combat Resolution
-    - Full D&D 5e attack mechanics (d20 + modifiers, critical hits/misses)
-    - Damage calculation with ability modifiers
-    - Zone-based positioning (Close/Near/Far)
-    - Initiative system with DEX modifiers
-    - Enemy AI with tactical decision-making
-    - Player HP tracking and defeat conditions
-  - **Phase 2C:** Combat Enhancements & UI
-    - Status condition system (Grappled, Prone, Frightened, Stunned, Poisoned, Paralyzed, Blinded, Restrained)
-    - Conditions affecting attack rolls (advantage/disadvantage)
-    - Conditions preventing movement
-    - Condition duration tracking and auto-expiration
-    - Rich combat narrative generator with varied descriptions
-    - Frontend CombatUI component with HP bars, quick actions, turn tracking
-    - Backend combat endpoints at /api/dm/combat/*
-    - Test suite passing for all combat features
-
-**✅ COMBAT INTEGRATION COMPLETE**
-
-**Issue Resolved**: Combat system now fully integrated with DM Orchestrator pipeline!
-
-**Changes Made**:
-1. ✅ **Backend API** (`backend/src/routes/dm.js`):
-   - Modified `/dm/interact` endpoint to return `combatState` and `skillCheckResult` in response
-   - Combat state now properly forwarded from DMOrchestrator to frontend
-
-2. ✅ **Frontend Integration** (`frontend/src/pages/DungeonMaster.jsx`):
-   - Updated to handle `result.combatState` (previously was checking non-existent `result.combat`)
-   - Added skill check display with dice roll results (🎲 icon, success/failure, modifiers breakdown)
-   - Combat UI automatically renders when combat is detected
-
-3. ✅ **DMOrchestrator** (`backend/src/services/dmOrchestrator.js`):
-   - Combat detection ALREADY implemented (lines 90-136)
-   - CombatDetector.analyze() called on every action
-   - CombatManager.initializeEncounter() triggered when combat detected
-   - Active combat checked before routing actions
-
-**What Now Works**:
-- ✅ User types "I attack the bandit" → Combat initialized
-- ✅ CombatDetector properly analyzes actions for combat triggers
-- ✅ Frontend receives and displays combat state + CombatUI component
-- ✅ Skill checks display with D&D roll mechanics
-- ✅ Full combat flow: detection → initialization → turn-based combat → victory/defeat
-
-**Test Coverage**:
-- `backend/tests/integration/test-combat-integration.js` - End-to-end combat testing (requires dev server running)
-- Tests non-combat actions, combat triggers, and skill checks through `/dm/interact`
-
-**✅ HEALTH SYSTEM PLANNING COMPLETE**
-
-**Status:** Research reviewed, database schema designed, comprehensive implementation plan created
-
-**Completed:**
-1. ✅ **Research Review:** Comprehensive analysis of `Gamification and Health Research.md`
-   - 169 pages of academic research synthesized
-   - Self-Determination Theory framework adopted
-   - Cooperative > competitive social structures validated
-   - 8-12 week content refresh cycles identified as critical
-
-2. ✅ **Database Schema:** `migrations/007_health_tracking_system.sql`
-   - `health_activities` - Track all health actions with stat mapping
-   - `wearable_integrations` - API connections (Terra/Thryve/ROOK)
-   - `health_streaks` - Graduated success (Bronze/Silver/Gold)
-   - `character_health_conditions` - Real health affects game (Well-Rested +2, Fatigued -2)
-   - `health_achievements` - Milestone tracking for "Myth Points"
-   - `stat_health_mappings` - Research-based stat-to-activity mappings
-   - `daily_activity_caps` - Anti-exploit (diminishing returns: 1st=100%, 2nd=50%, 3rd=10%)
-
-3. ✅ **Implementation Plan:** `HEALTH_SYSTEM_IMPLEMENTATION_PLAN.md`
-   - 4-phase roadmap (Foundation → Integration → Social → Advanced)
-   - Tiered verification (self-report, wearables, community)
-   - Deep mechanical integration (real health affects combat/quests)
-   - Accessibility features (physical, mental, economic)
-   - Privacy compliance (HIPAA/GDPR from day one)
-   - Success metrics and KPIs defined
-
-**Key Implementation Principles (Research-Validated):**
-- **Meaningful Gamification:** Health behaviors genuinely affect game state, not just metrics
-- **Stat-to-Health Mapping:** STR=strength training, DEX=yoga, CON=cardio/sleep, INT=learning, WIS=meditation, CHA=social
-- **Graduated Success:** Bronze (50%) maintains streak, Silver (75%) bonus XP, Gold (100%) max rewards
-- **Anti-Death Spiral:** Failure pauses XP gain (no loss), "Life Happens" mode for disruptions
-- **Combat Integration:** Well-Rested +2, Fatigued -2, workout consistency unlocks combat buffs
-- **Quest Gating:** Advanced quests require demonstrated capability (adaptive difficulty)
-- **Cooperative Social:** Party quests (shared goals), no individual rankings, celebration over comparison
-- **Content Refresh:** Every 8-12 weeks to combat gamification plateau
-
-**📊 CURRENT STATUS: Ready for Phase 1 Implementation (Months 1-3)**
-
-**Immediate Next Steps:**
-1. Run migration 007 to create health tracking tables
-2. Build backend services:
-   - `healthActivityService.js` - Log and track activities
-   - `statMappingService.js` - Calculate XP from health activities
-   - `healthConditionService.js` - Apply buffs/debuffs based on real health
-   - `streakService.js` - Track consistency with graduated levels
-3. Create API endpoints:
-   - `POST /api/health/activities` - Log health activity
-   - `GET /api/health/streaks` - Get current streaks
-   - `GET /api/health/conditions` - Get active health buffs/debuffs
-4. Build frontend components:
-   - `HealthActivityLogger.jsx` - Log workouts, meditation, sleep, etc.
-   - `StreakDisplay.jsx` - Show Bronze/Silver/Gold streaks
-   - `HealthConditions.jsx` - Display active buffs/debuffs in combat
-   - `StatProgressCard.jsx` - Show how real health improves D&D stats
-
-**The Ultimate Test:** Removing game mechanics should make health behavior feel less meaningful, not just less measured.
-
-**Reference Documents:**
-- `Gamification and Health Research.md` - 169 pages of academic research & case studies
-- `HEALTH_SYSTEM_IMPLEMENTATION_PLAN.md` - Complete 4-phase implementation roadmap
-- `migrations/007_health_tracking_system.sql` - Database schema for health tracking
+**Test Results (32-session story arc):**
+- Response variation: ✅ Working across all 6 styles
+- Combat sequences: ✅ 2 encounters tested
+- Skill checks: ✅ 10+ skills triggered
+- Narrative coherence: ✅ Maintained throughout
 
 ## Core Principle: Player Agency
 
@@ -385,18 +210,24 @@ INSERT INTO goals (stat_mapping, goal_type, target_value) VALUES ('STR', 'binary
 
 ## World Bible (Ground Truth)
 
-The world bible in the PRD (Section "World Bible") is **immutable ground truth**. The Lorekeeper agent validates all generated content against these rules:
+The world bible in `backend/src/data/worldBible.js` is **immutable ground truth**. The Lorekeeper agent validates all generated content against these rules:
 
-- Setting: Kingdom of Vitalia (fantasy realm where wellness = magical power)
-- The Six Pillars map to stats: Might(STR), Grace(DEX), Endurance(CON), Clarity(INT), Serenity(WIS), Radiance(CHA)
+- Setting: Ironhold (a fractured realm where the Great Sundering broke barriers between worlds)
+- The Six Foundations map to stats: Iron(STR), Wind(DEX), Stone(CON), Spark(INT), Tide(WIS), Flame(CHA)
 - No character death (failed quests have consequences, not death)
 - NPCs remember player actions (persistent relationships)
 - Time moves forward (events have lasting consequences)
 
 **Key NPCs with defined personalities:**
-- Elder Thorne: Gruff mentor, short sentences, dry humor
-- Lady Seraphine: Charismatic guild master, eloquent, tracks player balance
-- The Forgotten Sage: Mysterious wisdom guide, speaks in riddles
+- Warden Kael: Scarred veteran, gruff but honorable, watches for threats through the rifts
+- Sage Mirren: Keeper of lost knowledge, speaks carefully, studies the Sundering
+- The Hollow Voice: Mysterious entity, speaks from void-touched places, cryptic warnings
+
+**Key Locations:**
+- The Waystation: Hub where paths cross between fractured realms (starting area)
+- Shattered Peaks: Mountains torn by dimensional rifts
+- Still Waters: Lake that reflects other realities
+- Ember Quarter: District lit by otherworldly flames
 
 ## Development Phases
 
@@ -519,14 +350,16 @@ npx playwright test e2e/full-flow.spec.js --headed
 
 ## Reference Documents
 
-- `PRD.md`: Complete product requirements with research-informed architecture decisions
-- `Research.md`: Comprehensive analysis of production AI storytelling systems (85 pages)
-  - Case studies: Character.AI, AI Dungeon, Replika, Sudowrite, NovelAI
-  - Technical patterns: Memory systems, multi-agent coordination, RAG frameworks
-  - Failure modes: "11 kids problem", context drift, cost explosions
-  - Best practices: Caching strategies, prompt engineering, validation layers
+**Active:**
+- `frontend-redesign-prd.md`: Frontend redesign specification (Adventurer's Journal)
+- `SPRINTS.md`: Current sprint tasks and progress
+- `SETUP_INSTRUCTIONS.md`: Development environment setup
 
-**When making architectural decisions:** Reference the PRD's "Appendix A: Research-Based Design Decisions" which links each choice to specific research findings.
+**Archived (in `/archive`):**
+- `PRD.md`: Original product requirements
+- `Research.md`: AI storytelling systems research (85 pages)
+- `HEALTH_SYSTEM_IMPLEMENTATION_PLAN.md`: Health integration roadmap
+- `Gamification and Health Research.md`: Academic research synthesis
 
 ## Agent Call Flow Example
 

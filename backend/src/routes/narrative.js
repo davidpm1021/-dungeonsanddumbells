@@ -49,4 +49,10 @@ router.get('/events/:characterId', narrativeController.getNarrativeEvents); // N
 // RAG retrieval (for E2E testing)
 router.post('/rag/retrieve', narrativeController.retrieveRelevantEvents); // No auth for testing
 
+// Generate daily narrative for Journal view
+router.get('/daily/:characterId', narrativeController.generateDailyNarrative); // No auth for testing
+
+// Generate welcome narrative for new adventurers (onboarding)
+router.post('/welcome', narrativeController.generateWelcomeNarrative); // No auth - used during onboarding
+
 module.exports = router;

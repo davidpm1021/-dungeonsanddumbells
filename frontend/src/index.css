@@ -2,13 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Fonts - Journal Typography */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Caveat:wght@400;500;600&display=swap');
+
+/* ============================================
+   Leather-Bound Journal Theme
+   ============================================ */
+:root {
+  /* Dark Frame (Leather Binding) */
+  --leather-dark: #1a0f0a;
+  --leather-medium: #3d2914;
+  --leather-accent: #8b4513;
+  --leather-highlight: #5c3d2e;
+
+  /* Light Pages (Parchment) */
+  --parchment-light: #f4e8d1;
+  --parchment-medium: #e8dcc8;
+  --parchment-aged: #d4c4a8;
+  --parchment-dark: #c9b896;
+
+  /* Ink Colors */
+  --ink-black: #2c1810;
+  --ink-brown: #4a3728;
+  --ink-faded: #6b5344;
+  --ink-light: #8a7a6a;
+
+  /* Accent (Gold Leaf) */
+  --gold-bright: #d4a855;
+  --gold-muted: #b8956e;
+  --gold-dark: #8b7355;
+
+  /* Legacy compatibility - map to new theme */
+  --color-bg-primary: var(--leather-dark);
+  --color-bg-secondary: var(--leather-medium);
+  --color-bg-card: rgba(244, 232, 209, 0.95);
+  --color-bg-card-hover: rgba(244, 232, 209, 1);
+  --color-parchment-dark: var(--parchment-aged);
+  --color-parchment-light: var(--parchment-light);
+  --color-parchment-text: var(--ink-brown);
+  --color-parchment-accent: var(--gold-bright);
+
+  /* Stat Colors (muted for journal aesthetic) */
+  --color-str: #9a4a4a;
+  --color-dex: #4a7a4a;
+  --color-con: #8a7a3a;
+  --color-int: #4a5a8a;
+  --color-wis: #6a4a7a;
+  --color-cha: #8a4a6a;
+
+  /* Border Colors */
+  --color-border-subtle: rgba(74, 55, 40, 0.3);
+  --color-border-amber: rgba(212, 168, 85, 0.5);
+  --color-border-leather: rgba(61, 41, 20, 0.6);
+
+  /* Typography */
+  --font-narrative: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  --font-handwritten: 'Caveat', cursive;
+  --font-ui: 'Crimson Pro', Georgia, serif;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+
+  /* Animation Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
 @layer base {
   body {
     @apply font-body antialiased;
+    background-color: var(--color-bg-primary);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--color-wis);
+    outline-offset: 2px;
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -234,6 +329,21 @@
     animation: scale-in 0.4s ease-out forwards;
   }
 
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out forwards;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .delay-100 {
     animation-delay: 0.1s;
   }
@@ -244,6 +354,257 @@
 
   .delay-1000 {
     animation-delay: 1s;
+  }
+
+  /* ============================================
+     LEATHER-BOUND JOURNAL COMPONENTS
+     ============================================ */
+
+  /* Leather Frame - Outer container */
+  .leather-frame {
+    @apply min-h-screen;
+    background: var(--leather-dark);
+    background-image:
+      radial-gradient(ellipse at top, var(--leather-medium) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, var(--leather-highlight) 0%, transparent 50%);
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Journal Page - Inner parchment area */
+  .journal-page {
+    @apply relative mx-auto;
+    background: linear-gradient(
+      to bottom,
+      var(--parchment-light) 0%,
+      var(--parchment-medium) 50%,
+      var(--parchment-aged) 100%
+    );
+    border: 3px solid var(--leather-medium);
+    box-shadow:
+      0 0 0 1px var(--leather-accent),
+      inset 0 0 30px rgba(139, 69, 19, 0.1),
+      0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Paper texture overlay */
+  .journal-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+    border-radius: inherit;
+    mix-blend-mode: multiply;
+  }
+
+  /* Journal Entry Text */
+  .journal-entry {
+    font-family: var(--font-narrative);
+    color: var(--ink-brown);
+    font-size: 1.125rem;
+    line-height: 1.8;
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  .journal-entry p {
+    @apply mb-4;
+    text-indent: 1.5em;
+  }
+
+  .journal-entry p:first-of-type {
+    text-indent: 0;
+  }
+
+  /* Drop Cap for first letter */
+  .journal-entry p:first-of-type::first-letter {
+    @apply float-left mr-2 text-5xl font-semibold;
+    color: var(--gold-bright);
+    font-family: var(--font-narrative);
+    line-height: 0.8;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Handwritten style (for dates, notes) */
+  .handwritten {
+    font-family: var(--font-handwritten);
+    color: var(--ink-faded);
+    font-size: 1.25rem;
+  }
+
+  /* Journal input area */
+  .journal-input {
+    @apply w-full px-4 py-3 rounded-lg;
+    font-family: var(--font-narrative);
+    font-size: 1.125rem;
+    color: var(--ink-brown);
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--gold-muted);
+    border-bottom: 2px solid var(--ink-faded);
+  }
+
+  .journal-input:focus {
+    @apply outline-none;
+    background: rgba(255, 255, 255, 0.5);
+    border-color: var(--gold-bright);
+    box-shadow: 0 2px 8px rgba(212, 168, 85, 0.2);
+  }
+
+  .journal-input::placeholder {
+    color: var(--ink-light);
+    font-style: italic;
+  }
+
+  /* Combat Margin Annotation */
+  .combat-margin {
+    @apply absolute right-0 top-0 p-4;
+    width: 200px;
+    font-family: var(--font-narrative);
+    font-size: 0.875rem;
+    color: var(--ink-faded);
+    border-left: 1px dashed var(--ink-light);
+    background: linear-gradient(to right, transparent 0%, rgba(244, 232, 209, 0.5) 100%);
+  }
+
+  .combat-margin-enemy {
+    @apply mb-3 pb-3;
+    border-bottom: 1px dotted var(--ink-light);
+  }
+
+  .combat-margin-enemy .enemy-name {
+    @apply font-semibold;
+    color: var(--ink-brown);
+  }
+
+  .combat-margin-enemy .enemy-stats {
+    @apply text-xs mt-1;
+    color: var(--ink-faded);
+  }
+
+  /* Health Buff Icons */
+  .health-buff {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs;
+    background: rgba(212, 168, 85, 0.2);
+    border: 1px solid var(--gold-muted);
+    color: var(--ink-brown);
+  }
+
+  .health-buff.debuff {
+    background: rgba(154, 74, 74, 0.2);
+    border-color: var(--color-str);
+  }
+
+  /* Inline Dice Roller */
+  .inline-dice-roller {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg;
+    background: rgba(212, 168, 85, 0.15);
+    border: 1px solid var(--gold-muted);
+    font-family: var(--font-narrative);
+    color: var(--ink-brown);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .inline-dice-roller:hover {
+    background: rgba(212, 168, 85, 0.3);
+    border-color: var(--gold-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(212, 168, 85, 0.3);
+  }
+
+  /* Roll result display */
+  .roll-result {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded;
+    font-family: var(--font-narrative);
+    font-weight: 600;
+  }
+
+  .roll-result.success {
+    background: rgba(74, 122, 74, 0.2);
+    color: #3d6b3d;
+  }
+
+  .roll-result.failure {
+    background: rgba(154, 74, 74, 0.2);
+    color: #8a4a4a;
+  }
+
+  /* Page Divider */
+  .journal-divider {
+    @apply my-6 mx-auto;
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      var(--gold-muted) 20%,
+      var(--gold-bright) 50%,
+      var(--gold-muted) 80%,
+      transparent 100%
+    );
+  }
+
+  /* Journal Date Header */
+  .journal-date {
+    @apply text-center mb-4;
+    font-family: var(--font-handwritten);
+    font-size: 1.5rem;
+    color: var(--ink-faded);
+  }
+
+  /* Book Tab Navigation */
+  .book-tabs {
+    @apply fixed bottom-0 left-0 right-0 flex justify-center gap-1;
+    background: var(--leather-dark);
+    border-top: 3px solid var(--leather-medium);
+    padding: 0.5rem 1rem max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .book-tab {
+    @apply px-4 py-2 rounded-t-lg text-sm font-medium;
+    font-family: var(--font-narrative);
+    color: var(--parchment-aged);
+    background: var(--leather-medium);
+    border: 1px solid var(--leather-accent);
+    border-bottom: none;
+    transition: all 0.2s ease;
+  }
+
+  .book-tab:hover {
+    background: var(--leather-highlight);
+    color: var(--parchment-light);
+  }
+
+  .book-tab.active {
+    background: var(--parchment-medium);
+    color: var(--ink-brown);
+    border-color: var(--gold-muted);
+    transform: translateY(-2px);
+  }
+
+  /* Legacy DM Narrative Block - Updated for journal theme */
+  .dm-narrative-block {
+    @apply relative p-6;
+    font-family: var(--font-narrative);
+    color: var(--ink-brown);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .narrative-text {
+    @apply text-lg leading-relaxed;
+    font-family: var(--font-narrative);
+    color: var(--ink-brown);
+    text-shadow: none;
+    font-style: normal;
+  }
+
+  .narrative-text::first-letter {
+    @apply text-4xl font-semibold float-left mr-3;
+    color: var(--gold-bright);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+    line-height: 0.85;
   }
 
   /* Quest Card Styles */
@@ -357,8 +718,295 @@
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
   }
 
-  /* Custom animations */
+  /* Custom animation delays */
   .animation-delay-150 {
     animation-delay: 150ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  /* ============================================
+     Ink-Fill Progress Bar - D&D themed
+     ============================================ */
+  .ink-progress {
+    @apply relative w-full h-3 rounded-full overflow-hidden;
+    background: linear-gradient(90deg, #1a0a2e 0%, #0d0520 100%);
+    border: 1px solid var(--color-border-amber);
+  }
+
+  .ink-progress-fill {
+    @apply absolute inset-y-0 left-0 rounded-full;
+    background: linear-gradient(90deg,
+      var(--color-parchment-accent) 0%,
+      #c9943c 50%,
+      var(--color-parchment-accent) 100%);
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+      0 0 8px var(--color-parchment-accent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .ink-progress-fill::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 100%);
+    animation: ink-shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes ink-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+
+  /* ============================================
+     XP Gain Animation
+     ============================================ */
+  .xp-gain {
+    animation: xp-pop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  @keyframes xp-pop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .xp-float {
+    animation: xp-float-up 2s ease-out forwards;
+  }
+
+  @keyframes xp-float-up {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-60px) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  /* ============================================
+     Page Transitions
+     ============================================ */
+  .page-enter {
+    animation: page-enter 0.4s ease-out forwards;
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-exit {
+    animation: page-exit 0.3s ease-in forwards;
+  }
+
+  @keyframes page-exit {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+
+  /* ============================================
+     Completion Flourish Animation
+     ============================================ */
+  .completion-flourish {
+    animation: flourish 0.8s ease-out;
+  }
+
+  @keyframes flourish {
+    0% {
+      transform: scale(0) rotate(-180deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.3) rotate(0deg);
+      opacity: 1;
+    }
+    75% {
+      transform: scale(0.9) rotate(10deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+
+  /* Sparkle effect for achievements */
+  .sparkle {
+    position: relative;
+  }
+
+  .sparkle::before,
+  .sparkle::after {
+    content: '✨';
+    position: absolute;
+    font-size: 0.75rem;
+    animation: sparkle 1.5s ease-in-out infinite;
+  }
+
+  .sparkle::before {
+    top: -10px;
+    left: -5px;
+    animation-delay: 0s;
+  }
+
+  .sparkle::after {
+    top: -5px;
+    right: -8px;
+    animation-delay: 0.5s;
+  }
+
+  @keyframes sparkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ============================================
+     Narrative Text Animations
+     ============================================ */
+  .narrative-reveal {
+    animation: narrative-reveal 1s ease-out forwards;
+  }
+
+  @keyframes narrative-reveal {
+    from {
+      opacity: 0;
+      filter: blur(4px);
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+  }
+
+  /* Typewriter effect for dramatic text */
+  .typewriter {
+    overflow: hidden;
+    border-right: 2px solid var(--color-parchment-accent);
+    white-space: nowrap;
+    animation:
+      typing 3s steps(40, end),
+      blink-caret 0.75s step-end infinite;
+  }
+
+  @keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes blink-caret {
+    from, to { border-color: transparent; }
+    50% { border-color: var(--color-parchment-accent); }
+  }
+
+  /* ============================================
+     Button Press Effect
+     ============================================ */
+  .btn-press:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+
+  /* ============================================
+     Stat Color Utilities
+     ============================================ */
+  .text-stat-str { color: var(--color-str); }
+  .text-stat-dex { color: var(--color-dex); }
+  .text-stat-con { color: var(--color-con); }
+  .text-stat-int { color: var(--color-int); }
+  .text-stat-wis { color: var(--color-wis); }
+  .text-stat-cha { color: var(--color-cha); }
+
+  .bg-stat-str { background-color: var(--color-str); }
+  .bg-stat-dex { background-color: var(--color-dex); }
+  .bg-stat-con { background-color: var(--color-con); }
+  .bg-stat-int { background-color: var(--color-int); }
+  .bg-stat-wis { background-color: var(--color-wis); }
+  .bg-stat-cha { background-color: var(--color-cha); }
+
+  .border-stat-str { border-color: var(--color-str); }
+  .border-stat-dex { border-color: var(--color-dex); }
+  .border-stat-con { border-color: var(--color-con); }
+  .border-stat-int { border-color: var(--color-int); }
+  .border-stat-wis { border-color: var(--color-wis); }
+  .border-stat-cha { border-color: var(--color-cha); }
+
+  /* ============================================
+     Hide scrollbar utility
+     ============================================ */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ============================================
+     Line clamp utilities
+     ============================================ */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* ============================================
+     Safe area padding for mobile
+     ============================================ */
+  .pb-safe {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
   }
 }

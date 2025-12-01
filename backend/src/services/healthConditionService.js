@@ -35,6 +35,10 @@ class HealthConditionService {
       const overtrainingCondition = this.evaluateOvertraining(healthData.recentWorkouts);
       if (overtrainingCondition) conditionsToApply.push(overtrainingCondition);
 
+      // Inactivity detection (no activities logged at all)
+      const inactiveCondition = this.evaluateInactivity(healthData);
+      if (inactiveCondition) conditionsToApply.push(inactiveCondition);
+
       // 3. Clear expired conditions
       await this.clearExpiredConditions(characterId);
 
@@ -214,6 +218,32 @@ class HealthConditionService {
   }
 
   /**
+   * Evaluate inactivity (no health activities logged)
+   * User choice: -1 debuff to encourage engagement
+   * @param {Object} healthData - Recent health data
+   * @returns {Object|null} Condition to apply
+   */
+  evaluateInactivity(healthData) {
+    // If user has NO activities (no sleep data AND no workouts), apply Inactive debuff
+    const hasNoSleep = !healthData.lastSleep;
+    const hasNoWorkouts = healthData.recentWorkouts.length === 0;
+
+    if (hasNoSleep && hasNoWorkouts) {
+      return {
+        name: 'Inactive',
+        type: 'debuff',
+        source: 'no_activities',
+        statModifiers: { all: -1 }, // -1 to all stats
+        skillCheckModifier: -1,
+        description: 'Your adventurer\'s spirit lies dormant. Log a health activity to awaken it.',
+        expiresInHours: 24 // Resets daily
+      };
+    }
+
+    return null;
+  }
+
+  /**
    * Apply a condition to a character
    * @param {number} characterId - Character ID
    * @param {Object} condition - Condition object
@@ -288,10 +318,8 @@ class HealthConditionService {
       ORDER BY applied_at DESC
     `, [characterId]);
 
-    return result.rows.map(row => ({
-      ...row,
-      stat_modifiers: JSON.parse(row.stat_modifiers)
-    }));
+    // stat_modifiers is JSONB - PostgreSQL returns it as object already
+    return result.rows;
   }
 
   /**

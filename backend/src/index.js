@@ -34,6 +34,9 @@ const worldEventRoutes = require('./routes/worldEvents');
 const agentLabRoutes = require('./routes/agentLab');
 const dmRoutes = require('./routes/dm');
 const healthRoutes = require('./routes/health');
+const wearablesRoutes = require('./routes/wearables');
+const achievementsRoutes = require('./routes/achievements');
+const analyticsRoutes = require('./routes/analytics');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);
@@ -47,6 +50,9 @@ app.use('/api/world-events', worldEventRoutes);
 app.use('/api/agent-lab', agentLabRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/wearables', wearablesRoutes);
+app.use('/api/achievements', achievementsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

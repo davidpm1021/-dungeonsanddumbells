@@ -151,6 +151,15 @@ export const narrative = {
 
   getWorldBible: () =>
     api.get('/narrative/world-bible'),
+
+  getDailyNarrative: (characterId) =>
+    api.get(`/narrative/daily/${characterId}`),
+
+  getWelcomeNarrative: (characterName, characterClass, wellnessFocus = []) =>
+    api.post('/narrative/welcome', { characterName, characterClass, wellnessFocus }),
+
+  getRecentEvents: (characterId, limit = 10) =>
+    api.get(`/narrative/events/${characterId}`, { params: { limit } }),
 };
 
 // Monitoring endpoints (admin/debugging)
@@ -209,6 +218,82 @@ export const health = {
     api.get('/health/stats', { params: { period } }),
 };
 
+// Wearables endpoints
+export const wearables = {
+  // Get connected wearables and supported platforms
+  getConnected: () =>
+    api.get('/wearables'),
+
+  // Connect a wearable device (mock for non-OAuth platforms)
+  connect: (platform, credentials, permissions) =>
+    api.post('/wearables/connect', { platform, credentials, permissions }),
+
+  // Disconnect a wearable device
+  disconnect: (platform) =>
+    api.delete(`/wearables/${platform}`),
+
+  // Manual sync (with optional mock data for testing)
+  sync: (platform, date, data) =>
+    api.post('/wearables/sync', { platform, date, data }),
+
+  // Get daily health data
+  getDaily: (date) =>
+    api.get(`/wearables/daily${date ? '/' + date : ''}`),
+
+  // Get weekly averages
+  getWeekly: () =>
+    api.get('/wearables/weekly'),
+
+  // Get data source priorities
+  getPriorities: () =>
+    api.get('/wearables/priorities'),
+
+  // Update priorities for a category
+  setPriority: (category, priorities, strategy) =>
+    api.put(`/wearables/priorities/${category}`, { priorities, strategy }),
+
+  // Oura-specific endpoints
+  oura: {
+    getAuthUrl: () => api.get('/wearables/oura/auth'),
+    sync: (startDate, endDate) => api.post('/wearables/oura/sync', { startDate, endDate }),
+  },
+
+  // Health Connect (Android) endpoints
+  healthConnect: {
+    register: (deviceId, permissions) => api.post('/wearables/health-connect/register', { deviceId, permissions }),
+    push: (deviceId, date, data, sourceApps) => api.post('/wearables/health-connect/push', { deviceId, date, data, sourceApps }),
+    batch: (records) => api.post('/wearables/health-connect/batch', { records }),
+    getStatus: () => api.get('/wearables/health-connect/status'),
+  },
+};
+
+// Achievement endpoints
+export const achievements = {
+  // Get all available achievements
+  getAll: () =>
+    api.get('/achievements'),
+
+  // Get user's unlocked achievements
+  getUserAchievements: () =>
+    api.get('/achievements/user'),
+
+  // Get complete view (all achievements + user unlock status)
+  getComplete: () =>
+    api.get('/achievements/complete'),
+
+  // Get myth points total
+  getMythPoints: () =>
+    api.get('/achievements/myth-points'),
+
+  // Trigger achievement check
+  check: (characterId = null) =>
+    api.post('/achievements/check', { characterId }),
+
+  // Get progress toward a specific achievement
+  getProgress: (achievementId) =>
+    api.get(`/achievements/${achievementId}/progress`),
+};
+
 // DM endpoints
 export const dm = {
   interact: (data) =>
@@ -216,6 +301,10 @@ export const dm = {
 
   quest: (character) =>
     api.post('/dm/quest', { character }),
+
+  // Get stored welcome narrative for character
+  getWelcome: (characterId) =>
+    api.get(`/dm/welcome/${characterId}`),
 
   // Combat endpoints
   getActiveCombat: (characterId) =>

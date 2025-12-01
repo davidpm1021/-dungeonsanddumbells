@@ -54,3 +54,6 @@ backend/.env.local
 
 # Redis dump
 dump.rdb
+
+# Archive folder - old docs and test utilities
+archive/

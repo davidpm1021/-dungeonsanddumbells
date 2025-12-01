@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const healthActivityService = require('../services/healthActivityService');
 const healthConditionService = require('../services/healthConditionService');
+const achievementService = require('../services/achievementService');
 const { authenticateToken, optionalAuth, loadCharacter } = require('../middleware/auth');
 const pool = require('../config/database');
 
@@ -74,7 +75,7 @@ router.post('/activities', authenticateToken, loadCharacter, async (req, res) =>
     }
 
     const activity = await healthActivityService.logActivity({
-      userId: req.user.id,
+      userId: req.user.userId,
       characterId: req.character?.id || null,
       activityType,
       title,
@@ -90,10 +91,25 @@ router.post('/activities', authenticateToken, loadCharacter, async (req, res) =>
 
     // If character exists, re-evaluate health conditions
     if (req.character?.id) {
-      await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.id);
+      await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.userId);
     }
 
-    res.status(201).json(activity);
+    // Check for newly unlocked achievements
+    let newlyUnlockedAchievements = [];
+    try {
+      newlyUnlockedAchievements = await achievementService.checkAndUnlockAchievements(
+        req.user.userId,
+        req.character?.id || null
+      );
+    } catch (achievementError) {
+      console.error('Achievement check error (non-blocking):', achievementError);
+      // Don't fail the request if achievement check fails
+    }
+
+    res.status(201).json({
+      ...activity,
+      newlyUnlockedAchievements
+    });
 
   } catch (error) {
     console.error('Log activity error:', error);
@@ -115,7 +131,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
       offset
     } = req.query;
 
-    const activities = await healthActivityService.getActivityHistory(req.user.id, {
+    const activities = await healthActivityService.getActivityHistory(req.user.userId, {
       activityType,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
@@ -140,7 +156,7 @@ router.get('/activities/summary', authenticateToken, async (req, res) => {
     const { startDate, endDate } = req.query;
 
     const summary = await healthActivityService.getActivitySummary(
-      req.user.id,
+      req.user.userId,
       startDate ? new Date(startDate) : null,
       endDate ? new Date(endDate) : null
     );
@@ -161,7 +177,7 @@ router.delete('/activities/:id', authenticateToken, async (req, res) => {
   try {
     const activityId = parseInt(req.params.id);
 
-    await healthActivityService.deleteActivity(activityId, req.user.id);
+    await healthActivityService.deleteActivity(activityId, req.user.userId);
 
     res.json({ success: true, message: 'Activity deleted' });
 
@@ -182,7 +198,7 @@ router.get('/streaks', optionalAuth, async (req, res) => {
       return res.json([]);
     }
 
-    const streaks = await healthActivityService.getStreaks(req.user.id);
+    const streaks = await healthActivityService.getStreaks(req.user.userId);
 
     res.json(streaks);
 
@@ -208,7 +224,7 @@ router.get('/conditions', optionalAuth, optionalLoadCharacter, async (req, res) 
     }
 
     // Evaluate conditions before returning
-    await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.id);
+    await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.userId);
 
     const summary = await healthConditionService.getConditionSummary(req.character.id);
 
@@ -231,7 +247,7 @@ router.post('/conditions/refresh', authenticateToken, loadCharacter, async (req,
       return res.status(400).json({ error: 'No character found. Create a character first.' });
     }
 
-    const conditions = await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.id);
+    const conditions = await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.userId);
 
     res.json({
       message: 'Conditions refreshed',
@@ -315,18 +331,18 @@ router.get('/stats', optionalAuth, optionalLoadCharacter, async (req, res) => {
 
     // Get activity summary
     const activitySummary = await healthActivityService.getActivitySummary(
-      req.user.id,
+      req.user.userId,
       startDate,
       now
     );
 
     // Get streaks
-    const streaks = await healthActivityService.getStreaks(req.user.id);
+    const streaks = await healthActivityService.getStreaks(req.user.userId);
 
     // Get conditions (if character exists)
     let conditions = null;
     if (req.character?.id) {
-      await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.id);
+      await healthConditionService.evaluateAndApplyConditions(req.character.id, req.user.userId);
       conditions = await healthConditionService.getConditionSummary(req.character.id);
     }
 

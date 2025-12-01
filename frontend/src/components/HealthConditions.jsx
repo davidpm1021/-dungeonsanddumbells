@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
 import { health } from '../services/api';
 
-const CONDITION_EMOJIS = {
-  buff: '✨',
-  debuff: '💀',
-  neutral: '⚡'
+const SOURCE_CONFIG = {
+  quality_sleep: { icon: '😴', label: 'Quality Sleep' },
+  sleep_deprivation: { icon: '🥱', label: 'Sleep Deprivation' },
+  insufficient_sleep: { icon: '😵', label: 'Insufficient Sleep' },
+  workout_consistency: { icon: '💪', label: 'Workout Consistency' },
+  workout_inactivity: { icon: '🛋️', label: 'Inactivity' },
+  excessive_training: { icon: '🔥', label: 'Excessive Training' },
+  meditation_practice: { icon: '🧘', label: 'Meditation Practice' },
 };
 
-const SOURCE_ICONS = {
-  quality_sleep: '😴',
-  sleep_deprivation: '🥱',
-  insufficient_sleep: '😵',
-  workout_consistency: '💪',
-  workout_inactivity: '🛋️',
-  excessive_training: '🔥'
+const STAT_COLORS = {
+  STR: 'red',
+  DEX: 'green',
+  CON: 'yellow',
+  INT: 'blue',
+  WIS: 'purple',
+  CHA: 'pink',
+  all: 'amber',
 };
 
 export default function HealthConditions({ autoRefresh = false }) {
@@ -28,7 +33,6 @@ export default function HealthConditions({ autoRefresh = false }) {
       const response = await health.getConditions();
       setConditions(response.data);
     } catch (err) {
-      // If no character, don't show error
       if (err.response?.status === 400 && err.response?.data?.error?.includes('No character')) {
         setConditions({ buffs: [], debuffs: [], statModifiers: {} });
       } else {
@@ -55,27 +59,33 @@ export default function HealthConditions({ autoRefresh = false }) {
     fetchConditions();
 
     if (autoRefresh) {
-      const interval = setInterval(fetchConditions, 60000); // Refresh every minute
+      const interval = setInterval(fetchConditions, 60000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
 
   if (isLoading) {
     return (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4">⚔️ Active Conditions</h2>
-        <div className="text-gray-400">Loading conditions...</div>
+      <div className="space-y-4">
+        {[1, 2].map(i => (
+          <div key={i} className="bg-[#1a0a2e]/40 rounded-xl p-4 border border-purple-900/30 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-purple-900/30" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-purple-900/20 rounded w-1/3" />
+                <div className="h-3 bg-purple-900/20 rounded w-2/3" />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4">⚔️ Active Conditions</h2>
-        <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
-          {error}
-        </div>
+      <div className="bg-red-500/10 border border-red-500/40 text-red-300 px-4 py-3 rounded-xl">
+        {error}
       </div>
     );
   }
@@ -83,57 +93,86 @@ export default function HealthConditions({ autoRefresh = false }) {
   const hasConditions = conditions && (conditions.buffs?.length > 0 || conditions.debuffs?.length > 0);
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-yellow-400">⚔️ Active Conditions</h2>
+    <div className="space-y-4">
+      {/* Header with Refresh */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-gray-400 text-sm">Active Effects</h3>
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="text-sm bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700 disabled:opacity-50 text-gray-300 px-3 py-1 rounded transition-colors"
+          className={`
+            text-xs px-3 py-1.5 rounded-lg transition-all
+            ${isRefreshing
+              ? 'bg-purple-900/20 text-gray-500'
+              : 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/30'
+            }
+          `}
         >
-          {isRefreshing ? 'Refreshing...' : '🔄 Refresh'}
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       {!hasConditions ? (
-        <div className="text-gray-400 text-center py-8">
-          <p>No active conditions</p>
-          <p className="text-sm mt-2">Complete health activities to unlock buffs!</p>
+        <div className="bg-[#1a0a2e]/30 rounded-xl p-8 border border-dashed border-purple-900/30 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-3xl mx-auto mb-4">
+            ⚔️
+          </div>
+          <h3 className="font-semibold text-gray-400">No Active Conditions</h3>
+          <p className="text-sm text-gray-600 mt-2">
+            Complete health activities to unlock buffs!
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
           {/* Buffs */}
           {conditions.buffs && conditions.buffs.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-green-400 mb-2">✨ Buffs</h3>
-              <div className="space-y-2">
-                {conditions.buffs.map((condition) => (
-                  <ConditionCard key={condition.id} condition={condition} type="buff" />
-                ))}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-green-400">✨</span>
+                <span className="text-sm font-semibold text-green-400">Active Buffs</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                  {conditions.buffs.length}
+                </span>
               </div>
+              {conditions.buffs.map((condition) => (
+                <ConditionCard key={condition.id} condition={condition} type="buff" />
+              ))}
             </div>
           )}
 
           {/* Debuffs */}
           {conditions.debuffs && conditions.debuffs.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-red-400 mb-2">💀 Debuffs</h3>
-              <div className="space-y-2">
-                {conditions.debuffs.map((condition) => (
-                  <ConditionCard key={condition.id} condition={condition} type="debuff" />
-                ))}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-red-400">💀</span>
+                <span className="text-sm font-semibold text-red-400">Active Debuffs</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
+                  {conditions.debuffs.length}
+                </span>
               </div>
+              {conditions.debuffs.map((condition) => (
+                <ConditionCard key={condition.id} condition={condition} type="debuff" />
+              ))}
             </div>
           )}
 
-          {/* Total Stat Modifiers */}
+          {/* Total Stat Modifiers Summary */}
           {conditions.statModifiers && Object.keys(conditions.statModifiers).some(stat => conditions.statModifiers[stat] !== 0) && (
-            <div className="mt-4 pt-4 border-t border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-300 mb-2">Total Stat Modifiers:</h3>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="bg-[#1a0a2e]/40 rounded-xl p-4 border border-purple-900/30">
+              <h4 className="text-xs font-semibold text-gray-400 mb-3">Total Stat Modifiers</h4>
+              <div className="flex flex-wrap gap-2">
                 {Object.entries(conditions.statModifiers).map(([stat, modifier]) => (
                   modifier !== 0 && (
-                    <div key={stat} className={`px-3 py-2 rounded ${modifier > 0 ? 'bg-green-900/30 border border-green-500' : 'bg-red-900/30 border border-red-500'}`}>
+                    <div
+                      key={stat}
+                      className={`
+                        px-3 py-2 rounded-lg border
+                        ${modifier > 0
+                          ? 'bg-green-500/10 border-green-500/30'
+                          : 'bg-red-500/10 border-red-500/30'
+                        }
+                      `}
+                    >
                       <div className="text-xs text-gray-400">{stat}</div>
                       <div className={`text-lg font-bold ${modifier > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {modifier > 0 ? '+' : ''}{modifier}
@@ -146,68 +185,86 @@ export default function HealthConditions({ autoRefresh = false }) {
           )}
         </div>
       )}
-
-      {/* Info Box */}
-      <div className="mt-4 p-3 bg-gray-700/50 rounded border border-gray-600 text-xs text-gray-300">
-        <p className="font-semibold mb-1">How Conditions Work:</p>
-        <ul className="space-y-1 text-gray-400">
-          <li>• Sleep 7+ hours → <span className="text-green-400">Well-Rested</span> (+2 all stats)</li>
-          <li>• Sleep &lt;6 hours → <span className="text-red-400">Fatigued</span> (-2 physical stats)</li>
-          <li>• 3+ workouts/week → <span className="text-green-400">Battle-Ready</span> (+1 STR/CON)</li>
-          <li>• 5+ workouts/week → <span className="text-green-400">Unstoppable</span> (+1 all stats)</li>
-        </ul>
-      </div>
     </div>
   );
 }
 
 function ConditionCard({ condition, type }) {
-  const sourceIcon = SOURCE_ICONS[condition.source] || '⚡';
-  const typeColor = type === 'buff' ? 'border-green-500 bg-green-900/20' : 'border-red-500 bg-red-900/20';
+  const sourceConfig = SOURCE_CONFIG[condition.source] || { icon: '⚡', label: condition.source };
+  const isBuff = type === 'buff';
 
   // Calculate time remaining
   const expiresAt = condition.expires_at ? new Date(condition.expires_at) : null;
   const now = new Date();
-  const timeRemaining = expiresAt ? Math.max(0, Math.floor((expiresAt - now) / (1000 * 60 * 60))) : null;
+  const hoursRemaining = expiresAt ? Math.max(0, Math.floor((expiresAt - now) / (1000 * 60 * 60))) : null;
 
   return (
-    <div className={`p-3 rounded border-2 ${typeColor}`}>
+    <div className={`
+      rounded-xl p-4 border transition-all duration-300 hover:scale-[1.01]
+      ${isBuff
+        ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/30'
+        : 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/30'
+      }
+    `}>
       <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{sourceIcon}</span>
+        <div className="flex items-center gap-3">
+          <div className={`
+            w-11 h-11 rounded-xl flex items-center justify-center text-xl
+            ${isBuff ? 'bg-green-500/20 border border-green-500/30' : 'bg-red-500/20 border border-red-500/30'}
+          `}>
+            {sourceConfig.icon}
+          </div>
           <div>
-            <h4 className="font-bold text-white">{condition.condition_name}</h4>
-            <p className="text-xs text-gray-400 capitalize">{condition.source.replace(/_/g, ' ')}</p>
+            <h4 className={`font-bold ${isBuff ? 'text-green-300' : 'text-red-300'}`}>
+              {condition.condition_name}
+            </h4>
+            <p className="text-xs text-gray-500">{sourceConfig.label}</p>
           </div>
         </div>
-        {timeRemaining !== null && (
+        {hoursRemaining !== null && (
           <div className="text-right">
-            <div className="text-xs text-gray-400">Expires in</div>
-            <div className="text-sm font-semibold text-gray-300">{timeRemaining}h</div>
+            <div className="text-xs text-gray-500">Expires in</div>
+            <div className={`text-sm font-semibold ${isBuff ? 'text-green-400' : 'text-red-400'}`}>
+              {hoursRemaining}h
+            </div>
           </div>
         )}
       </div>
 
-      <p className="text-sm text-gray-300 mb-2 italic">"{condition.description}"</p>
+      <p className="text-sm text-gray-400 italic mb-3 pl-14">
+        "{condition.description}"
+      </p>
 
       {/* Stat Modifiers */}
       {condition.stat_modifiers && (
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(condition.stat_modifiers).map(([stat, modifier]) => (
-            <span
-              key={stat}
-              className={`text-xs px-2 py-1 rounded ${
-                modifier > 0 ? 'bg-green-700 text-green-200' : 'bg-red-700 text-red-200'
-              }`}
-            >
-              {stat === 'all' ? 'All Stats' : stat}: {modifier > 0 ? '+' : ''}{modifier}
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-1.5 pl-14">
+          {Object.entries(condition.stat_modifiers).map(([stat, modifier]) => {
+            const color = STAT_COLORS[stat] || 'gray';
+            const isPositive = modifier > 0;
+            return (
+              <span
+                key={stat}
+                className={`
+                  text-xs px-2.5 py-1 rounded-lg font-medium
+                  ${isPositive
+                    ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/30`
+                    : `bg-red-500/20 text-red-400 border border-red-500/30`
+                  }
+                `}
+              >
+                {stat === 'all' ? 'All Stats' : stat}: {isPositive ? '+' : ''}{modifier}
+              </span>
+            );
+          })}
           {condition.skill_check_modifier !== 0 && (
             <span
-              className={`text-xs px-2 py-1 rounded ${
-                condition.skill_check_modifier > 0 ? 'bg-green-700 text-green-200' : 'bg-red-700 text-red-200'
-              }`}
+              className={`
+                text-xs px-2.5 py-1 rounded-lg font-medium
+                ${condition.skill_check_modifier > 0
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                }
+              `}
             >
               Skill Checks: {condition.skill_check_modifier > 0 ? '+' : ''}{condition.skill_check_modifier}
             </span>

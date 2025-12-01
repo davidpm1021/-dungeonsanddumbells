@@ -1,4 +1,6 @@
 const db = require('../config/database');
+const statDecayService = require('./statDecayService');
+const narrativeActivityService = require('./narrativeActivityService');
 
 /**
  * Health Activity Service
@@ -115,7 +117,7 @@ class HealthActivityService {
         title, description,
         durationMinutes, intensity,
         quantityValue, quantityUnit,
-        verificationMethod, verificationData ? JSON.stringify(verificationData) : null, verificationMethod !== 'self_report' ? new Date() : null,
+        verificationMethod, verificationData || null, verificationMethod !== 'self_report' ? new Date() : null,
         xpEarned, difficultyClass, true, // Assume success unless proven otherwise
         completedAt,
         goalId, contributesToGoal, adjustedXP
@@ -126,15 +128,47 @@ class HealthActivityService {
       // 7. Award XP to character if character_id provided (use adjusted XP to prevent double rewards)
       if (characterId && adjustedXP > 0) {
         await this.awardXPToCharacter(characterId, statMapping.primaryStat, adjustedXP);
+
+        // 8. Reset decay timer for this stat (activity resets decay)
+        try {
+          await statDecayService.recordStatActivity(characterId, statMapping.primaryStat);
+        } catch (decayErr) {
+          console.warn('[HealthActivityService] Failed to reset decay timer:', decayErr.message);
+          // Non-fatal - activity was still logged
+        }
       }
 
-      // 7. Update streak tracking
-      await this.updateStreaks(userId, activityType, completedAt);
+      // 9. Update streak tracking
+      const streakInfo = await this.updateStreaks(userId, activityType, completedAt);
+
+      // 10. Create narrative event for Story Coordinator (Activity → Narrative Pipeline)
+      let narrativeEvent = null;
+      if (characterId) {
+        try {
+          narrativeEvent = await narrativeActivityService.createActivityNarrativeEvent({
+            characterId,
+            activityType,
+            intensity,
+            title,
+            xpEarned: adjustedXP,
+            primaryStat: statMapping.primaryStat,
+            durationMinutes,
+            isStreak: streakInfo?.isStreak || false,
+            streakDays: streakInfo?.currentStreak || 0
+          });
+          console.log(`[HealthActivityService] Created narrative event for activity: ${narrativeEvent?.id}`);
+        } catch (narrativeErr) {
+          console.warn('[HealthActivityService] Failed to create narrative event:', narrativeErr.message);
+          // Non-fatal - activity was still logged
+        }
+      }
 
       return {
         ...activity,
-        verification_data: activity.verification_data ? JSON.parse(activity.verification_data) : null,
-        stat_mapping: statMapping
+        // verification_data is JSONB - PostgreSQL returns it as object already
+        stat_mapping: statMapping,
+        narrative_event: narrativeEvent,
+        streak_info: streakInfo
       };
 
     } catch (error) {
@@ -269,12 +303,36 @@ class HealthActivityService {
    * @param {number} userId - User ID
    * @param {string} activityType - Activity type
    * @param {Date} completedAt - Completion date
+   * @returns {Promise<Object>} Streak info { isStreak, currentStreak, level }
    */
   async updateStreaks(userId, activityType, completedAt) {
     // Use PostgreSQL function for streak tracking
     await db.query(`
       SELECT update_health_streak($1, $2, 'daily', 1)
     `, [userId, activityType]);
+
+    // Get updated streak info
+    try {
+      const result = await db.query(`
+        SELECT current_streak, current_level, best_streak
+        FROM health_streaks
+        WHERE user_id = $1 AND activity_type = $2
+      `, [userId, activityType]);
+
+      if (result.rows.length > 0) {
+        const streak = result.rows[0];
+        return {
+          isStreak: streak.current_streak > 1,
+          currentStreak: streak.current_streak,
+          level: streak.current_level,
+          bestStreak: streak.best_streak
+        };
+      }
+    } catch (err) {
+      console.warn('[HealthActivityService] Failed to get streak info:', err.message);
+    }
+
+    return { isStreak: false, currentStreak: 0, level: 'bronze' };
   }
 
   /**
@@ -333,10 +391,8 @@ class HealthActivityService {
 
     const result = await db.query(query, params);
 
-    return result.rows.map(row => ({
-      ...row,
-      verification_data: row.verification_data ? JSON.parse(row.verification_data) : null
-    }));
+    // verification_data is JSONB - PostgreSQL returns it as object already
+    return result.rows;
   }
 
   /**

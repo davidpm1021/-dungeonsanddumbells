@@ -1,29 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { quests as questsApi } from '../services/api';
+import { quests as questsApi, characters } from '../services/api';
 import useAuthStore from '../stores/authStore';
-import QuestSection from '../components/QuestSection';
+import useCharacterStore from '../stores/characterStore';
+import BottomNav from '../components/navigation/BottomNav';
+import QuestTabs from '../components/quest/QuestTabs';
+import QuestCard from '../components/QuestCard';
+import { useTutorial } from '../hooks/useTutorial';
 
 /**
  * Quest Log Page - MMO-Style Quest Management
- * Displays quests organized by type with tabs for Available/Active/Completed
+ * Dark parchment theme matching the Journal aesthetic
  */
 export default function QuestLog() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const { character, setCharacter } = useCharacterStore();
 
-  const [character, setCharacter] = useState(null);
+  // Trigger tutorial tips for this page
+  useTutorial('quests', { delay: 800 });
+
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('available'); // 'available', 'active', 'completed'
+  const [activeTab, setActiveTab] = useState('active');
   const [error, setError] = useState(null);
+  const [expandedQuestId, setExpandedQuestId] = useState(null);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
-
     loadData();
   }, [user, navigate]);
 
@@ -31,11 +38,13 @@ export default function QuestLog() {
     try {
       setLoading(true);
 
-      // Get character
-      const { characters } = await import('../services/api');
-      const charResponse = await characters.getMe();
-      const char = charResponse.data.character;
-      setCharacter(char);
+      // Get character if not loaded
+      let char = character;
+      if (!char) {
+        const charResponse = await characters.getMe();
+        char = charResponse.data.character || charResponse.data;
+        setCharacter(char);
+      }
 
       // Get quests
       const questsResponse = await questsApi.list(char.id);
@@ -53,29 +62,24 @@ export default function QuestLog() {
     try {
       await questsApi.start(questId, character.id);
 
-      // Update local state
       setQuests(quests.map(q =>
         q.id === questId ? { ...q, status: 'active', startedAt: new Date().toISOString() } : q
       ));
 
-      // Auto-switch to active tab
       setActiveTab('active');
     } catch (err) {
       console.error('Failed to accept quest:', err);
-      alert('Failed to accept quest. Please try again.');
     }
   };
 
   const handleCompleteObjective = async (questId, objectiveId) => {
     try {
       const response = await questsApi.completeObjective(questId, objectiveId, character.id);
-      const { success, rewards, progress, questCompleted } = response.data;
+      const { success, rewards, questCompleted } = response.data;
 
       if (success) {
-        // Update quest in local state
         setQuests(quests.map(q => {
           if (q.id === questId) {
-            // Parse objectives
             let objectives = [];
             try {
               objectives = typeof q.objectives === 'string' ? JSON.parse(q.objectives) : q.objectives;
@@ -83,7 +87,6 @@ export default function QuestLog() {
               objectives = q.objectives || [];
             }
 
-            // Mark objective as complete
             const updatedObjectives = objectives.map(obj =>
               obj.id === objectiveId ? { ...obj, completed: true } : obj
             );
@@ -97,7 +100,6 @@ export default function QuestLog() {
           return q;
         }));
 
-        // Update character state
         if (rewards) {
           setCharacter({
             ...character,
@@ -108,65 +110,30 @@ export default function QuestLog() {
       }
     } catch (err) {
       console.error('Failed to complete objective:', err);
-      alert('Failed to complete objective. Please try again.');
     }
   };
 
   const handleMakeChoice = async (questId, choiceId, optionId) => {
     try {
       const response = await questsApi.makeChoice(questId, choiceId, character.id, optionId);
-
       if (response.data.success) {
-        // Reload quests to get updated quest state and potentially new quests
         await loadData();
-
-        // Show consequence notification if available
-        const consequences = response.data.choice.consequences;
-        if (consequences) {
-          let message = 'Choice made! ';
-          if (consequences.relationshipChanges && consequences.relationshipChanges.length > 0) {
-            message += `Relationships affected: ${consequences.relationshipChanges.map(r => r.npc).join(', ')}. `;
-          }
-          if (consequences.branchActivated) {
-            message += `New story branch activated: ${consequences.branchActivated}`;
-          }
-          alert(message);
-        }
       }
     } catch (err) {
       console.error('Failed to make choice:', err);
-      alert(err.response?.data?.error || 'Failed to make choice. Please try again.');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">⏳</div>
-            <div className="text-gray-600">Loading Quest Log...</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="card border-2 border-red-200 bg-red-50">
-            <div className="text-red-800 font-bold mb-2">Error</div>
-            <div className="text-red-700">{error}</div>
-            <button onClick={loadData} className="btn btn-primary mt-4">
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleAbandonQuest = async (questId) => {
+    try {
+      await questsApi.abandon(questId, character.id);
+      setQuests(quests.map(q =>
+        q.id === questId ? { ...q, status: 'available' } : q
+      ));
+    } catch (err) {
+      console.error('Failed to abandon quest:', err);
+    }
+  };
 
   // Filter quests by tab
   const filteredQuests = quests.filter(q => {
@@ -176,6 +143,13 @@ export default function QuestLog() {
     return false;
   });
 
+  // Quest counts
+  const counts = {
+    available: quests.filter(q => q.status === 'available').length,
+    active: quests.filter(q => q.status === 'active').length,
+    completed: quests.filter(q => q.status === 'completed').length
+  };
+
   // Group quests by type
   const groupedQuests = filteredQuests.reduce((acc, quest) => {
     const type = quest.questType || quest.quest_type || 'side_story';
@@ -184,205 +158,169 @@ export default function QuestLog() {
     return acc;
   }, {});
 
-  // Count quests by status
-  const availableCount = quests.filter(q => q.status === 'available').length;
-  const activeCount = quests.filter(q => q.status === 'active').length;
-  const completedCount = quests.filter(q => q.status === 'completed').length;
+  const questTypeConfig = {
+    main_story: { title: 'Main Story', icon: '⚔️', priority: 1 },
+    character_arc: { title: 'Your Path', icon: '🌟', priority: 2 },
+    world_event: { title: 'World Events', icon: '🔥', priority: 3 },
+    side_story: { title: 'Side Quests', icon: '📖', priority: 4 },
+    exploration: { title: 'Exploration', icon: '🗺️', priority: 5 },
+    corrective: { title: 'Balance', icon: '⚖️', priority: 6 }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0118] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-amber-200/60 font-serif italic">Consulting the quest archives...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0118] flex items-center justify-center px-4">
+        <div className="bg-[#1a0a2e]/80 rounded-lg p-8 max-w-md text-center border border-red-500/30">
+          <p className="text-red-300 mb-4">{error}</p>
+          <button
+            onClick={loadData}
+            className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-display font-bold text-gray-900 mb-1">Quest Log</h1>
-              <p className="text-gray-600">
-                {character?.name} • Level {character?.level || 1}
-              </p>
+    <div className="min-h-screen bg-[#0a0118] pb-20">
+      {/* Background texture */}
+      <div className="fixed inset-0 bg-gradient-to-b from-amber-900/5 via-transparent to-purple-900/10 pointer-events-none" />
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-[#0d0520]/95 backdrop-blur-xl border-b border-amber-900/20">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/journal')}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ←
+              </button>
+              <h1 className="text-lg font-bold text-white">Quest Log</h1>
             </div>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="btn btn-secondary"
-            >
-              ← Back to Dashboard
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 bg-white p-2 rounded-lg shadow-sm border-2 border-purple-200">
-            <button
-              onClick={() => setActiveTab('available')}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'available'
-                  ? 'bg-blue-500 text-white shadow-md'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span>📋</span>
-                <span>Available</span>
-                <span className={`text-sm px-2 py-0.5 rounded-full ${
-                  activeTab === 'available' ? 'bg-blue-600' : 'bg-gray-200'
-                }`}>
-                  {availableCount}
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'active'
-                  ? 'bg-green-500 text-white shadow-md'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span>⚔️</span>
-                <span>Active</span>
-                <span className={`text-sm px-2 py-0.5 rounded-full ${
-                  activeTab === 'active' ? 'bg-green-600' : 'bg-gray-200'
-                }`}>
-                  {activeCount}
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('completed')}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'completed'
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span>✓</span>
-                <span>Completed</span>
-                <span className={`text-sm px-2 py-0.5 rounded-full ${
-                  activeTab === 'completed' ? 'bg-purple-600' : 'bg-gray-200'
-                }`}>
-                  {completedCount}
-                </span>
-              </div>
-            </button>
+            <div className="text-sm text-gray-500">
+              {character?.name}
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Quest Sections */}
+      <main className="relative z-10 max-w-2xl mx-auto px-4 py-6">
+        {/* Tabs */}
+        <div className="mb-6">
+          <QuestTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            counts={counts}
+          />
+        </div>
+
+        {/* Quest List */}
         {filteredQuests.length === 0 ? (
-          <div className="card text-center py-12">
-            <div className="text-6xl mb-4">📜</div>
-            <div className="text-xl font-bold text-gray-900 mb-2">
-              {activeTab === 'available' && 'No Available Quests'}
-              {activeTab === 'active' && 'No Active Quests'}
-              {activeTab === 'completed' && 'No Completed Quests Yet'}
-            </div>
-            <div className="text-gray-600 mb-6">
-              {activeTab === 'available' && 'Check back later for new adventures!'}
-              {activeTab === 'active' && 'Accept some quests from the Available tab to get started!'}
-              {activeTab === 'completed' && 'Complete some quests to build your legend!'}
-            </div>
-            {activeTab === 'available' && (
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="btn btn-primary"
-              >
-                Return to Dashboard
-              </button>
-            )}
-          </div>
+          <EmptyState tab={activeTab} onNavigate={() => setActiveTab('available')} />
         ) : (
           <div className="space-y-6">
-            {/* Main Story Section */}
-            {groupedQuests.main_story && (
-              <QuestSection
-                title="Main Story"
-                icon="⚔️"
-                quests={groupedQuests.main_story}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-              />
-            )}
+            {Object.entries(questTypeConfig)
+              .sort((a, b) => a[1].priority - b[1].priority)
+              .map(([type, config]) => {
+                const typeQuests = groupedQuests[type];
+                if (!typeQuests || typeQuests.length === 0) return null;
 
-            {/* Character Arcs Section */}
-            {groupedQuests.character_arc && (
-              <QuestSection
-                title="Your Path"
-                icon="🌟"
-                quests={groupedQuests.character_arc}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-              />
-            )}
-
-            {/* World Events Section */}
-            {groupedQuests.world_event && (
-              <QuestSection
-                title="World Events"
-                icon="🔥"
-                quests={groupedQuests.world_event}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-                urgent={true}
-              />
-            )}
-
-            {/* Side Stories Section */}
-            {groupedQuests.side_story && (
-              <QuestSection
-                title="Side Quests"
-                icon="📖"
-                quests={groupedQuests.side_story}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-              />
-            )}
-
-            {/* Exploration Section */}
-            {groupedQuests.exploration && (
-              <QuestSection
-                title="Exploration"
-                icon="🗺️"
-                quests={groupedQuests.exploration}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-                collapsible={true}
-              />
-            )}
-
-            {/* Corrective/Balance Section */}
-            {groupedQuests.corrective && (
-              <QuestSection
-                title="Balance Quests"
-                icon="⚖️"
-                quests={groupedQuests.corrective}
-                questStatus={activeTab}
-                onAccept={handleAcceptQuest}
-                onCompleteObjective={handleCompleteObjective}
-                onMakeChoice={handleMakeChoice}
-                character={character}
-              />
-            )}
+                return (
+                  <section key={type}>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span>{config.icon}</span>
+                      <span>{config.title}</span>
+                      <span className="text-gray-600">({typeQuests.length})</span>
+                    </h3>
+                    <div className="space-y-3">
+                      {typeQuests.map(quest => (
+                        <QuestCard
+                          key={quest.id}
+                          quest={quest}
+                          isExpanded={expandedQuestId === quest.id}
+                          onToggle={() => setExpandedQuestId(
+                            expandedQuestId === quest.id ? null : quest.id
+                          )}
+                          onAccept={() => handleAcceptQuest(quest.id)}
+                          onCompleteObjective={(objId) => handleCompleteObjective(quest.id, objId)}
+                          onMakeChoice={(choiceId, optionId) => handleMakeChoice(quest.id, choiceId, optionId)}
+                          onAbandon={() => handleAbandonQuest(quest.id)}
+                          character={character}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
           </div>
         )}
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}
+
+/**
+ * Empty state for quest tabs
+ */
+function EmptyState({ tab, onNavigate }) {
+  const messages = {
+    active: {
+      icon: '⚔️',
+      title: 'No Active Quests',
+      description: 'Accept some quests to begin your adventure!',
+      action: 'Browse Available',
+      showAction: true
+    },
+    available: {
+      icon: '📋',
+      title: 'No Available Quests',
+      description: 'Check back later for new adventures, or complete some goals to unlock new quests.',
+      showAction: false
+    },
+    completed: {
+      icon: '📜',
+      title: 'No Completed Quests',
+      description: 'Your legend is just beginning. Complete quests to build your story!',
+      showAction: false
+    }
+  };
+
+  const msg = messages[tab] || messages.active;
+
+  return (
+    <div className="bg-[#1a0a2e]/40 rounded-xl p-8 text-center border border-purple-900/30">
+      <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+        <span className="text-4xl opacity-60">{msg.icon}</span>
       </div>
+      <h3 className="text-xl font-bold text-white mb-2">{msg.title}</h3>
+      <p className="text-gray-400 mb-6 max-w-sm mx-auto font-serif italic">
+        {msg.description}
+      </p>
+      {msg.showAction && (
+        <button
+          onClick={onNavigate}
+          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-xl transition-all shadow-lg"
+        >
+          {msg.action}
+        </button>
+      )}
     </div>
   );
 }

@@ -84,10 +84,10 @@ async function testWorkingMemory() {
     const events = [
       {
         eventType: 'quest_started',
-        description: 'You meet Elder Thorne at his hermitage. He challenges you to climb the mountain.',
-        participants: ['Elder Thorne'],
+        description: 'You meet Warden Kael at the Waystation. He challenges you to climb the mountain.',
+        participants: ['Warden Kael'],
         statChanges: {},
-        context: { location: 'Elder Thorne\'s Hermitage' }
+        context: { location: 'The Waystation' }
       },
       {
         eventType: 'goal_completion',
@@ -99,8 +99,8 @@ async function testWorkingMemory() {
       },
       {
         eventType: 'npc_interaction',
-        description: 'Elder Thorne nods approvingly at your progress.',
-        participants: ['Elder Thorne'],
+        description: 'Warden Kael nods approvingly at your progress.',
+        participants: ['Warden Kael'],
         statChanges: {},
         context: { relationship_change: 'friendly' }
       },
@@ -114,8 +114,8 @@ async function testWorkingMemory() {
       },
       {
         eventType: 'quest_completed',
-        description: 'You successfully climbed the mountain. Elder Thorne is impressed.',
-        participants: ['Elder Thorne'],
+        description: 'You successfully climbed the mountain. Warden Kael is impressed.',
+        participants: ['Warden Kael'],
         statChanges: { STR: 25, CON: 20, WIS: 10 },
         questId: 1,
         context: { location: 'Forgotten Peaks' }
@@ -148,14 +148,14 @@ async function testWorkingMemory() {
     }
 
     // Verify participants are stored correctly
-    const elderThorneEvents = workingMemory.filter(e =>
-      e.participants && e.participants.includes('Elder Thorne')
+    const wardenKaelEvents = workingMemory.filter(e =>
+      e.participants && e.participants.includes('Warden Kael')
     );
 
-    if (elderThorneEvents.length === 3) {
-      success(`Correctly filtered ${elderThorneEvents.length} events with Elder Thorne`);
+    if (wardenKaelEvents.length === 3) {
+      success(`Correctly filtered ${wardenKaelEvents.length} events with Warden Kael`);
     } else {
-      error(`Expected 3 Elder Thorne events, got ${elderThorneEvents.length}`);
+      error(`Expected 3 Warden Kael events, got ${wardenKaelEvents.length}`);
     }
 
   } catch (err) {
@@ -193,7 +193,7 @@ async function testWorkingMemoryPruning() {
 
     // Verify oldest event was pruned
     const hasOldestEvent = workingMemory.some(e =>
-      e.event_description.includes('meet Elder Thorne at his hermitage')
+      e.event_description.includes('meet Warden Kael at the Waystation')
     );
 
     if (!hasOldestEvent) {
@@ -217,9 +217,9 @@ async function testLongTermMemory() {
   try {
     // Store important facts in long-term memory
     const facts = [
-      { fact: 'Elder Thorne is your mentor who taught you about the Six Pillars', importance: 0.9 },
+      { fact: 'Warden Kael is your mentor who taught you about the Six Foundations', importance: 0.9 },
       { fact: 'You are a Fighter class, focused on STR and CON', importance: 0.95 },
-      { fact: 'Vitalia is suffering from a mysterious malaise', importance: 0.85 },
+      { fact: 'Ironhold is suffering from a mysterious malaise', importance: 0.85 },
       { fact: 'The Forgotten Peaks is where you first met the Sage', importance: 0.7 }
     ];
 
@@ -246,20 +246,20 @@ async function testLongTermMemory() {
     }
 
     // Test reinforcement
-    info('Reinforcing "Elder Thorne" memory...');
+    info('Reinforcing "Warden Kael" memory...');
     await memoryManager.reinforceMemory(
       testCharacter.id,
-      'Elder Thorne is your mentor who taught you about the Six Pillars',
+      'Warden Kael is your mentor who taught you about the Six Foundations',
       0.05
     );
 
     const reinforcedMemories = await memoryManager.getLongTermMemory(testCharacter.id);
-    const elderThorneMemory = reinforcedMemories.find(m =>
-      m.content_text.includes('Elder Thorne')
+    const wardenKaelMemory = reinforcedMemories.find(m =>
+      m.content_text.includes('Warden Kael')
     );
 
-    if (elderThorneMemory && parseFloat(elderThorneMemory.importance_score) >= 0.95) {
-      success(`Memory reinforced (score: ${elderThorneMemory.importance_score})`);
+    if (wardenKaelMemory && parseFloat(wardenKaelMemory.importance_score) >= 0.95) {
+      success(`Memory reinforced (score: ${wardenKaelMemory.importance_score})`);
     } else {
       error('Memory reinforcement failed');
     }
@@ -340,11 +340,11 @@ async function testWorldState() {
     // Update world state with NPC relationships
     await memoryManager.updateWorldState(testCharacter.id, {
       npc_relationships: {
-        'Elder Thorne': {
+        'Warden Kael': {
           level: 'friendly',
           notes: 'Grateful for completing mountain quest'
         },
-        'Lady Seraphine': {
+        'Sage Mirren': {
           level: 'professional',
           notes: 'Impressed by balanced stat growth'
         }
@@ -355,7 +355,7 @@ async function testWorldState() {
 
     // Update unlocked locations
     await memoryManager.updateWorldState(testCharacter.id, {
-      unlocked_locations: ['Haven Village', 'Elder Thorne\'s Hermitage', 'Forgotten Peaks']
+      unlocked_locations: ['Haven Village', 'The Waystation', 'Shattered Peaks']
     });
 
     success('Updated unlocked locations');
@@ -374,9 +374,9 @@ async function testWorldState() {
     // Retrieve world state
     const worldState = await memoryManager.getWorldState(testCharacter.id);
 
-    if (worldState.npc_relationships['Elder Thorne']) {
+    if (worldState.npc_relationships['Warden Kael']) {
       success('NPC relationships retrieved correctly');
-      info(`Elder Thorne: ${worldState.npc_relationships['Elder Thorne'].level}`);
+      info(`Warden Kael: ${worldState.npc_relationships['Warden Kael'].level}`);
     }
 
     if (worldState.unlocked_locations.length === 3) {
@@ -400,9 +400,9 @@ async function testNarrativeSummary() {
   section('Test 6: Narrative Summary Updates');
 
   try {
-    const newContent = `You have proven yourself to Elder Thorne through completing the mountain quest.
+    const newContent = `You have proven yourself to Warden Kael through completing the mountain quest.
     Your strength and endurance have grown significantly, and you've begun to understand the power
-    of the Six Pillars. Lady Seraphine has taken notice of your balanced approach to growth.`;
+    of the Six Foundations. Sage Mirren has taken notice of your balanced approach to growth.`;
 
     info('Updating narrative summary...');
 

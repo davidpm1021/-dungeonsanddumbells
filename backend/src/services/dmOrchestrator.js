@@ -7,6 +7,8 @@ const SkillCheckDetector = require('./agents/skillCheckDetector');
 const SkillCheckService = require('./skillCheckService');
 const CombatDetector = require('./agents/combatDetector');
 const CombatManager = require('./combatManager');
+const healthContextProvider = require('./healthContextProvider');
+const HealthConditionService = require('./healthConditionService');
 const db = require('../config/database');
 
 /**
@@ -32,6 +34,144 @@ class DMOrchestrator {
   }
 
   /**
+   * Response style prompts - guide the AI on response length/format based on input type
+   */
+  responseStyles = {
+    quick_question: `
+RESPONSE LENGTH: BRIEF (1-2 sentences only)
+This is a simple question - give a direct, concise answer. No elaborate description.
+Example: "The door is locked - you hear the mechanism click as you try the handle."`,
+
+    specific_action: `
+RESPONSE LENGTH: FOCUSED (1 short paragraph, 3-5 sentences)
+Describe the action's outcome clearly. Focus on what the player did and what happened.`,
+
+    exploration: `
+RESPONSE LENGTH: DESCRIPTIVE (2-3 paragraphs)
+Paint the scene with sensory details - sight, sound, smell. Let the player discover.`,
+
+    dialogue: `
+RESPONSE LENGTH: CONVERSATIONAL (1-2 exchanges)
+Focus on the NPC's voice and personality. Use direct speech.
+Short exchanges feel more real than monologues. Let the player respond.`,
+
+    combat: `
+RESPONSE LENGTH: PUNCHY (1 paragraph, varied rhythm)
+Combat is visceral. Short sentences for impacts. "Steel meets steel."
+Longer ones for the chaos. Mix them for energy. End with what happens next.`,
+
+    dramatic_moment: `
+RESPONSE LENGTH: EVOCATIVE (3-4 paragraphs)
+This is a significant moment - first arrival, major reveal, boss encounter.
+Take time to build atmosphere. Vary sentence length for rhythm.
+Short punchy sentences build tension. Longer flowing ones convey grandeur.`
+  };
+
+  /**
+   * Classify the appropriate response style based on player input and context
+   */
+  classifyResponseStyle(action, context) {
+    const actionLower = action.toLowerCase().trim();
+    const {
+      isFirstVisit = false,
+      combatActive = false,
+      npcPresent = null,
+      recentDramaticEvent = false
+    } = context;
+
+    // LAYER 1: Context overrides (highest priority)
+    if (combatActive) {
+      return 'combat';
+    }
+
+    if (isFirstVisit && /\b(arrive|enter|step into|approach|come to|reach)\b/.test(actionLower)) {
+      return 'dramatic_moment';
+    }
+
+    if (recentDramaticEvent) {
+      return 'dramatic_moment';
+    }
+
+    // LAYER 2: Input pattern analysis
+    // Quick questions - short, interrogative, seeking specific info
+    if (actionLower.length < 40 && /^(is|are|do|does|can|how many|what time|where|who|what's)\b/.test(actionLower)) {
+      return 'quick_question';
+    }
+
+    // Dialogue with NPC
+    if (npcPresent && /\b(ask|tell|say|speak|talk|reply|respond|greet|thank|inquire)\b/.test(actionLower)) {
+      return 'dialogue';
+    }
+
+    // Exploration - looking/examining environment
+    if (/\b(look|examine|inspect|survey|observe|search|investigate|explore|check out|what do i see|describe|scan|study)\b/.test(actionLower)) {
+      return 'exploration';
+    }
+
+    // LAYER 3: Input length heuristic
+    if (actionLower.length < 25) {
+      return 'specific_action';
+    }
+
+    if (actionLower.length > 100) {
+      return 'exploration';
+    }
+
+    return 'specific_action';
+  }
+
+  /**
+   * Build context object from available state for response style classification
+   */
+  buildResponseContext({ relevantMemories, combatState, narrativeSummary, worldContext, action }) {
+    // Extract current location from context
+    const locationMatch = worldContext?.match(/(?:in|at|near|approaching)\s+(?:the\s+)?([A-Z][a-zA-Z\s]+?)(?:\.|,|$)/);
+    const currentLocation = locationMatch ? locationMatch[1].trim() : null;
+
+    // Check if player has visited current location before
+    const visitedBefore = currentLocation && relevantMemories?.some(m => {
+      const content = (m.description || m.content || '').toLowerCase();
+      return content.includes(currentLocation.toLowerCase());
+    });
+
+    // Extract NPC from recent context or world context
+    const npcPatterns = [
+      /speaking with (\w+)/i,
+      /(\w+) (says|asks|replies|responds|greets)/i,
+      /talking to (\w+)/i,
+      /facing (\w+)/i,
+      /meet(?:ing)? (\w+)/i
+    ];
+    let npcPresent = null;
+    for (const pattern of npcPatterns) {
+      const match = (worldContext || '').match(pattern);
+      if (match) {
+        npcPresent = match[1];
+        break;
+      }
+    }
+
+    // Also check if action mentions talking to someone
+    if (!npcPresent) {
+      const actionNpcMatch = action?.match(/(?:ask|tell|speak to|talk to|greet)\s+(?:the\s+)?(\w+)/i);
+      if (actionNpcMatch) {
+        npcPresent = actionNpcMatch[1];
+      }
+    }
+
+    // Check for recent dramatic events in summary
+    const dramaticKeywords = /discovered|revealed|betrayed|died|attacked|transformed|awakened|collapsed|emerged|appeared|vanished/i;
+    const recentDramaticEvent = dramaticKeywords.test(narrativeSummary?.slice(-500) || '');
+
+    return {
+      isFirstVisit: !visitedBefore && currentLocation,
+      combatActive: combatState?.status === 'active',
+      npcPresent,
+      recentDramaticEvent
+    };
+  }
+
+  /**
    * Process player action through full pipeline
    */
   async processAction({ character, action, worldContext, recentMessages = [], sessionId }) {
@@ -48,6 +188,23 @@ class DMOrchestrator {
       pipelineLog[pipelineLog.length - 1].result = `Found ${relevantMemories.length} relevant memories`;
       console.log(`[DMOrchestrator] Step 1: Retrieved ${relevantMemories.length} memories`);
 
+      // Step 1.5: Retrieve health context for narrative integration
+      pipelineLog.push({ step: 'health_context', startTime: Date.now() });
+      let healthContext = null;
+      if (character.userId && character.id) {
+        try {
+          healthContext = await healthContextProvider.getHealthContextXML(character.userId, character.id);
+          pipelineLog[pipelineLog.length - 1].result = 'Health context retrieved';
+        } catch (error) {
+          console.error('[DMOrchestrator] Health context retrieval failed:', error.message);
+          pipelineLog[pipelineLog.length - 1].result = 'Health context unavailable';
+        }
+      } else {
+        pipelineLog[pipelineLog.length - 1].result = 'No user/character ID for health data';
+      }
+      pipelineLog[pipelineLog.length - 1].duration = Date.now() - pipelineLog[pipelineLog.length - 1].startTime;
+      console.log(`[DMOrchestrator] Step 1.5: Health context ${healthContext ? 'retrieved' : 'unavailable'}`);
+
       // Step 2: Get or create narrative summary
       pipelineLog.push({ step: 'narrative_summary', startTime: Date.now() });
       const narrativeSummary = await this.getNarrativeSummary(sessionId, worldContext);
@@ -61,27 +218,29 @@ class DMOrchestrator {
       pipelineLog[pipelineLog.length - 1].requiresCheck = skillCheckRequired.requiresCheck;
       console.log(`[DMOrchestrator] Step 2.5: Skill check ${skillCheckRequired.requiresCheck ? `required (${skillCheckRequired.skillType} DC${skillCheckRequired.dc})` : 'not needed'}`);
 
-      // Step 2.6: Perform skill check if required
+      // Step 2.6: PREPARE skill check if required (PLAYER AGENCY - don't auto-roll!)
       let skillCheckResult = null;
+      let pendingRoll = null;
       if (skillCheckRequired.requiresCheck && character.id) {
-        pipelineLog.push({ step: 'skill_check_execution', startTime: Date.now() });
+        pipelineLog.push({ step: 'skill_check_preparation', startTime: Date.now() });
         try {
-          skillCheckResult = await SkillCheckService.performCheck(
+          // PLAYER AGENCY: Prepare check (get modifiers) but don't roll!
+          pendingRoll = await SkillCheckService.prepareCheck(
             character.id,
             skillCheckRequired.skillType,
             skillCheckRequired.dc,
             {
               narrativeContext: action.substring(0, 500),
-              advantage: false, // TODO: Detect advantage/disadvantage from conditions
+              advantage: false,
               disadvantage: false
             }
           );
           pipelineLog[pipelineLog.length - 1].duration = Date.now() - pipelineLog[pipelineLog.length - 1].startTime;
-          pipelineLog[pipelineLog.length - 1].success = skillCheckResult.success;
-          pipelineLog[pipelineLog.length - 1].total = skillCheckResult.total;
-          console.log(`[DMOrchestrator] Step 2.6: Skill check rolled: ${skillCheckResult.modifiersBreakdown}`);
+          pipelineLog[pipelineLog.length - 1].skillType = pendingRoll.skillType;
+          pipelineLog[pipelineLog.length - 1].modifier = pendingRoll.totalModifier;
+          console.log(`[DMOrchestrator] Step 2.6: Skill check PREPARED (player must roll): ${pendingRoll.promptText}`);
         } catch (error) {
-          console.error('[DMOrchestrator] Skill check execution failed:', error.message);
+          console.error('[DMOrchestrator] Skill check preparation failed:', error.message);
           pipelineLog[pipelineLog.length - 1].duration = Date.now() - pipelineLog[pipelineLog.length - 1].startTime;
           pipelineLog[pipelineLog.length - 1].error = error.message;
         }
@@ -149,7 +308,8 @@ class DMOrchestrator {
         relevantMemories,
         narrativeSummary,
         skillCheckResult, // Pass skill check result to narrative generation
-        combatState // NEW: Pass combat state to narrative generation
+        combatState, // Combat state to narrative generation
+        healthContext // Health context for personalized narratives
       });
       pipelineLog[pipelineLog.length - 1].duration = Date.now() - pipelineLog[pipelineLog.length - 1].startTime;
       pipelineLog[pipelineLog.length - 1].tokens = rawResponse.tokens;
@@ -187,8 +347,9 @@ class DMOrchestrator {
       return {
         narrative: rawResponse.narrative,
         continuation: rawResponse.continuation,
-        skillCheckResult: skillCheckResult, // Include skill check result
-        combatState: combatState, // NEW: Include combat state
+        skillCheckResult: skillCheckResult, // Include resolved skill check result
+        pendingRoll: pendingRoll, // NEW: Include pending roll for player agency
+        combatState: combatState, // Include combat state
         metadata: {
           source: 'orchestrated',
           pipeline: pipelineLog,
@@ -202,8 +363,9 @@ class DMOrchestrator {
           questTriggered: questTrigger.triggered,
           questSuggestion: questTrigger.suggestion,
           skillCheckPerformed: skillCheckResult !== null, // Flag if skill check happened
-          combatActive: combatState !== null, // NEW: Flag if combat is active
-          combatTriggered: combatDetectionResult?.combatTriggered || false // NEW: Flag if combat just started
+          skillCheckPending: pendingRoll !== null, // Flag if player needs to roll
+          combatActive: combatState !== null, // Flag if combat is active
+          combatTriggered: combatDetectionResult?.combatTriggered || false // Flag if combat just started
         }
       };
 
@@ -259,8 +421,19 @@ class DMOrchestrator {
   /**
    * Step 3: Generate narrative with full context
    */
-  async generateNarrative({ character, action, worldContext, recentMessages, relevantMemories, narrativeSummary, skillCheckResult = null, combatState = null }) {
-    const systemPrompt = this.buildOrchestratedSystemPrompt(character, worldContext, narrativeSummary, relevantMemories);
+  async generateNarrative({ character, action, worldContext, recentMessages, relevantMemories, narrativeSummary, skillCheckResult = null, combatState = null, healthContext = null }) {
+    // Build context and classify response style
+    const responseContext = this.buildResponseContext({
+      relevantMemories,
+      combatState,
+      narrativeSummary,
+      worldContext,
+      action
+    });
+    const responseStyle = this.classifyResponseStyle(action, responseContext);
+    console.log(`[DMOrchestrator] Response style: ${responseStyle} (context: firstVisit=${responseContext.isFirstVisit}, combat=${responseContext.combatActive}, npc=${responseContext.npcPresent})`);
+
+    const systemPrompt = this.buildOrchestratedSystemPrompt(character, worldContext, narrativeSummary, relevantMemories, responseStyle, healthContext);
     const userPrompt = this.buildUserPrompt(action, recentMessages, skillCheckResult, combatState);
 
     const response = await claudeAPI.call({
@@ -279,8 +452,14 @@ class DMOrchestrator {
     return parsed;
   }
 
-  buildOrchestratedSystemPrompt(character, worldContext, narrativeSummary, relevantMemories) {
+  buildOrchestratedSystemPrompt(character, worldContext, narrativeSummary, relevantMemories, responseStyle = 'specific_action', healthContext = null) {
+    const styleGuidance = this.responseStyles[responseStyle] || this.responseStyles.specific_action;
+
     let prompt = `You are a skilled Dungeon Master running a tabletop RPG session with a focus on narrative consistency and immersion.
+
+## RESPONSE STYLE GUIDANCE
+${styleGuidance}
+
 
 ## CORE PRINCIPLE: PLAYER AGENCY
 
@@ -320,6 +499,26 @@ Level: ${character.level || 1}
 Stats: STR ${character.str}, DEX ${character.dex}, CON ${character.con}, INT ${character.int}, WIS ${character.wis}, CHA ${character.cha}
 `;
 
+    // Add health context if available (real-world health data for immersive narratives)
+    if (healthContext) {
+      prompt += `
+## PLAYER'S REAL-WORLD HEALTH STATE
+The player's real-world health affects their character's in-game state. Use this subtly to create immersive, personalized narratives.
+
+${healthContext}
+
+**How to use health context:**
+- If player slept well (8+ hours): Character feels sharp, alert, reflexes are quick
+- If player is fatigued (<6 hours sleep): Character yawns, feels heavy, reactions are slower
+- If player has active workout streak: Character shows physical confidence, ease of movement
+- If player has active buffs: Weave these naturally into descriptions
+- If player has debuffs: Subtly reference physical limitations or tiredness
+- **NEVER** explicitly mention "you slept 8 hours" - translate to in-game experience
+- Make health effects feel natural to the fantasy world, not like gamification
+
+`;
+    }
+
     if (relevantMemories.length > 0) {
       prompt += `\n## RELEVANT PAST EVENTS (maintain consistency with these)\n`;
       relevantMemories.forEach((mem, i) => {
@@ -349,12 +548,14 @@ Stats: STR ${character.str}, DEX ${character.dex}, CON ${character.con}, INT ${c
 
 Respond with a JSON object:
 {
-  "narrative": "The main narrative response (2-3 paragraphs)",
+  "narrative": "Your response following the RESPONSE STYLE GUIDANCE above",
   "continuation": "A brief DM prompt for next action (1 sentence)",
   "worldStateChanges": ["key_event_1", "key_event_2"] // Track significant changes
 }
 
-IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks.`;
+IMPORTANT:
+- Respond ONLY with valid JSON. No markdown code blocks.
+- Follow the RESPONSE STYLE GUIDANCE for narrative length - some responses should be just 1-2 sentences!`;
 
     return prompt;
   }

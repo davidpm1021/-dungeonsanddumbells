@@ -39,7 +39,7 @@ test.describe('Full User Flow E2E Test', () => {
     console.log('\n--- Step 2: Character Creation ---');
 
     // Wait for character creation page to load
-    await expect(page.locator('text=Welcome to Vitalia')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Choose Your Path')).toBeVisible({ timeout: 10000 });
 
     // Enter character name (field is named "characterName")
     await page.fill('input[name="characterName"]', TEST_USER.characterName);

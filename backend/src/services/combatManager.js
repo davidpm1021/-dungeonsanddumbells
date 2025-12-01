@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const ConditionService = require('./conditionService');
 const CombatNarrative = require('./combatNarrative');
+const HealthConditionService = require('./healthConditionService');
 
 /**
  * Combat Manager Service
@@ -207,9 +208,21 @@ class CombatManager {
 
       const encounter = this.formatEncounter(result.rows[0]);
 
-      // Include active conditions
+      // Include D&D 5e conditions (Grappled, Prone, etc.)
       const activeConditions = await ConditionService.getActiveConditions(characterId);
       encounter.activeConditions = activeConditions;
+
+      // Include health conditions (Well-Rested, Battle-Ready, etc.)
+      try {
+        const healthConditions = await HealthConditionService.getActiveConditions(characterId);
+        const healthModifiers = await HealthConditionService.calculateTotalStatModifiers(characterId);
+        encounter.healthConditions = healthConditions;
+        encounter.healthModifiers = healthModifiers;
+      } catch (err) {
+        console.log('[CombatManager] Could not fetch health conditions:', err.message);
+        encounter.healthConditions = [];
+        encounter.healthModifiers = { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 };
+      }
 
       return encounter;
 
@@ -466,9 +479,24 @@ class CombatManager {
     const isRangedAttack = actionLower.match(/\b(shoot|fire|throw|bow|crossbow)\b/);
     const isMeleeAttack = !isRangedAttack;
 
-    // Calculate ability modifiers
-    const strMod = character ? Math.floor((character.str - 10) / 2) : 2;
-    const dexMod = character ? Math.floor((character.dex - 10) / 2) : 2;
+    // Get health condition modifiers (fitness affects combat!)
+    let healthModifiers = { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 };
+    let healthConditions = [];
+    try {
+      healthModifiers = await HealthConditionService.calculateTotalStatModifiers(character.id);
+      healthConditions = await HealthConditionService.getActiveConditions(character.id);
+      if (Object.values(healthModifiers).some(v => v !== 0)) {
+        console.log('[CombatManager] Applying health modifiers:', healthModifiers);
+      }
+    } catch (err) {
+      console.log('[CombatManager] Could not fetch health modifiers:', err.message);
+    }
+
+    // Calculate ability modifiers (now including health buffs/debuffs!)
+    const baseStrMod = character ? Math.floor((character.str - 10) / 2) : 2;
+    const baseDexMod = character ? Math.floor((character.dex - 10) / 2) : 2;
+    const strMod = baseStrMod + (healthModifiers.STR || 0);
+    const dexMod = baseDexMod + (healthModifiers.DEX || 0);
     const profBonus = character ? character.proficiency_bonus : 2;
 
     // Determine attack modifier

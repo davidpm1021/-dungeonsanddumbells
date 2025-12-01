@@ -137,14 +137,14 @@ export default function GoalSetup() {
   const handleFinish = () => {
     if (goalList.length === 0) {
       // Allow skipping, but show them they can add goals later
-      navigate('/dashboard');
+      navigate('/journal');
     } else {
       setCurrentStep('complete');
     }
   };
 
-  const handleContinueToDashboard = () => {
-    navigate('/dashboard');
+  const handleContinueToJournal = () => {
+    navigate('/journal');
   };
 
   return (
@@ -473,7 +473,7 @@ export default function GoalSetup() {
                   <div className="glass-card p-8 border border-green-500/20 bg-green-500/5 text-left">
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
                       Your commitment has been recognized.
-                      <span className="text-green-300 font-semibold not-italic"> You have chosen wisely,</span>
+                      <span className="text-green-300 font-semibold not-italic"> You have chosen wisely, </span>
                       setting the foundation for your journey.
                     </p>
                     <p className="text-gray-300 mb-4 leading-relaxed italic">
@@ -511,7 +511,7 @@ export default function GoalSetup() {
                 </div>
 
                 <button
-                  onClick={handleContinueToDashboard}
+                  onClick={handleContinueToJournal}
                   className="modern-button-large group"
                 >
                   <span className="flex items-center gap-3">

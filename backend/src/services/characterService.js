@@ -63,7 +63,71 @@ class CharacterService {
 
     // Get character with computed stats from view
     const character = await this.getCharacterById(characterId);
+
+    // Generate AI welcome narrative (async, non-blocking)
+    this.generateAndStoreWelcomeNarrative(characterId, {
+      id: characterId,
+      name: name.trim(),
+      character_class: characterClass,
+      class: characterClass
+    }).catch(err => {
+      console.error('[CharacterService] Welcome narrative generation failed (non-fatal):', err.message);
+    });
+
     return character;
+  }
+
+  /**
+   * Generate and store AI-powered welcome narrative for new character
+   */
+  async generateAndStoreWelcomeNarrative(characterId, character) {
+    try {
+      const dmNarrator = require('./dmNarrator');
+      const memoryManager = require('./memoryManager');
+
+      console.log(`[CharacterService] Generating welcome narrative for character ${characterId}`);
+
+      // Generate the AI narrative
+      const welcomeNarrative = await dmNarrator.generateWelcomeNarrative({
+        character,
+        goals: [] // No goals yet at character creation
+      });
+
+      // Store as a narrative event
+      await memoryManager.storeInWorkingMemory(characterId, {
+        eventType: 'welcome_narrative',
+        description: welcomeNarrative.fullText,
+        participants: ['Warden Kael'],
+        statChanges: {},
+        questId: null,
+        context: {
+          narrativeType: 'welcome',
+          source: welcomeNarrative.source,
+          hook: welcomeNarrative.hook
+        }
+      });
+
+      // Initialize world state with the welcome narrative
+      try {
+        await pool.query(
+          `INSERT INTO world_state (character_id, narrative_summary, npc_relationships, unlocked_locations, story_flags)
+           VALUES ($1, $2, '{"Warden Kael": {"met": true, "relationship": "mentor"}}', ARRAY['The Waystation'], '{"tutorial_started": true}')
+           ON CONFLICT (character_id) DO UPDATE
+           SET narrative_summary = $2`,
+          [characterId, welcomeNarrative.narrative]
+        );
+      } catch (worldStateError) {
+        console.log('[CharacterService] World state update skipped:', worldStateError.message);
+      }
+
+      console.log(`[CharacterService] Welcome narrative stored for character ${characterId}`);
+      return welcomeNarrative;
+
+    } catch (error) {
+      console.error('[CharacterService] Welcome narrative error:', error.message);
+      // Non-fatal - character was still created
+      return null;
+    }
   }
 
   /**

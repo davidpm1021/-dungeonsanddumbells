@@ -1,6 +1,7 @@
 const claudeAPI = require('../claudeAPI');
 const modelRouter = require('../modelRouter');
 const promptBuilder = require('../promptBuilder');
+const narrativeActivityService = require('../narrativeActivityService');
 
 /**
  * Story Coordinator Agent
@@ -31,6 +32,16 @@ class StoryCoordinator {
       // Fetch quest history for theme variety
       const completedQuestCount = await this.getCompletedQuestCount(characterId);
 
+      // Fetch fitness activity context for narrative integration
+      let fitnessContext = null;
+      let activityTriggers = [];
+      try {
+        fitnessContext = await narrativeActivityService.getActivitySummaryForNarrative(characterId);
+        activityTriggers = await narrativeActivityService.checkActivityTriggers(characterId);
+      } catch (fitnessErr) {
+        console.warn('[StoryCoordinator] Could not load fitness context:', fitnessErr.message);
+      }
+
       // Build prompt with full context
       const { system, messages } = await promptBuilder.build({
         agentType: 'story_coordinator',
@@ -39,7 +50,11 @@ class StoryCoordinator {
         context: {
           activeQuestCount,
           characterQualities: qualities,
-          completedQuestCount
+          completedQuestCount,
+          // Fitness integration - Story Coordinator can now reference player's real-world activity
+          fitnessContext: fitnessContext?.narrativeContext || null,
+          fitnessEngagement: fitnessContext?.engagementLevel || 'unknown',
+          activityTriggers
         },
         includeWorldBible: true,
         includeMemory: true

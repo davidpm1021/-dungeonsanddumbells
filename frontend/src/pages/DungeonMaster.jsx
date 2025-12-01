@@ -3,13 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import api, { dm } from '../services/api';
 import { characters } from '../services/api';
 import useAuthStore from '../stores/authStore';
-import CombatUI from '../components/CombatUI';
-import DiceRoller from '../components/DiceRoller';
+import JournalPage from '../components/journal/JournalPage';
+import CombatMargin from '../components/journal/CombatMargin';
+import InlineDiceRoller from '../components/journal/InlineDiceRoller';
+import { useTutorial } from '../hooks/useTutorial';
 
 export default function DungeonMaster() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState([]);
+
+  // Trigger tutorial tips for this page
+  useTutorial('dm', { delay: 1500 });
+
+  // Narrative entries (continuous prose, not chat bubbles)
+  const [entries, setEntries] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [character, setCharacter] = useState({
@@ -26,11 +33,13 @@ export default function DungeonMaster() {
   const [customWorld, setCustomWorld] = useState('');
   const [isGeneratingWorld, setIsGeneratingWorld] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const messagesEndRef = useRef(null);
+  const entriesEndRef = useRef(null);
+
   // Combat state
   const [combat, setCombat] = useState(null);
-  const [combatConditions, setCombatConditions] = useState([]);
-  // Pending roll state (initiative, attack, skill check)
+  const [healthConditions, setHealthConditions] = useState([]);
+
+  // Pending roll state (skill checks, initiative, attacks)
   const [pendingRoll, setPendingRoll] = useState(null);
 
   const GENRE_PRESETS = {
@@ -67,13 +76,12 @@ export default function DungeonMaster() {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    entriesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-
+  }, [entries]);
 
   // Check for active combat
   const checkActiveCombat = async () => {
@@ -82,15 +90,13 @@ export default function DungeonMaster() {
       const response = await api.get(`/dm/combat/active?characterId=${character.id}`);
       if (response.data) {
         setCombat(response.data);
-        if (response.data.activeConditions) {
-          setCombatConditions(response.data.activeConditions);
+        if (response.data.healthConditions) {
+          setHealthConditions(response.data.healthConditions);
         }
       } else {
         setCombat(null);
-        setCombatConditions([]);
       }
-    } catch (error) {
-      // No active combat
+    } catch {
       setCombat(null);
     }
   };
@@ -99,37 +105,16 @@ export default function DungeonMaster() {
   useEffect(() => {
     if (setupStep === 'ready' && character.id) {
       checkActiveCombat();
-      const interval = setInterval(checkActiveCombat, 5000); // Check every 5 seconds
+      const interval = setInterval(checkActiveCombat, 5000);
       return () => clearInterval(interval);
     }
   }, [setupStep, character.id]);
 
-  // Check if initiative roll is needed
-  useEffect(() => {
-    if (combat?.initiativeOrder) {
-      const playerCombatant = combat.initiativeOrder.find(c => c.type === 'player');
-      if (playerCombatant?.needsRoll) {
-        // Player needs to roll initiative
-        const dexMod = Math.floor((character.dex - 10) / 2);
-        setPendingRoll({
-          type: 'initiative',
-          encounterId: combat.encounter?.id || combat.id,
-          modifier: dexMod,
-          modifierLabel: 'DEX'
-        });
-      } else {
-        // No roll needed
-        setPendingRoll(null);
-      }
-    } else {
-      setPendingRoll(null);
-    }
-  }, [combat, character.dex]);
-
-  const addMessage = (type, content, metadata = {}) => {
-    setMessages(prev => [...prev, {
+  // Add a narrative entry
+  const addEntry = (type, content, metadata = {}) => {
+    setEntries(prev => [...prev, {
       id: Date.now(),
-      type,
+      type, // 'narrative', 'player', 'system', 'roll'
       content,
       timestamp: new Date().toISOString(),
       ...metadata
@@ -144,10 +129,10 @@ export default function DungeonMaster() {
           const response = await characters.getMe();
           if (response.data) {
             setCharacter(response.data);
-            setSetupStep('ready'); // Skip setup if character exists
-            addMessage('system', `Welcome back, ${response.data.name}! Your adventure continues...`);
+            setSetupStep('ready');
+            addEntry('narrative', `The journal pages flutter as you return to your adventure. ${response.data.name}, your story continues...`);
           }
-        } catch (error) {
+        } catch {
           console.log('No character found, using setup flow');
         }
       }
@@ -157,30 +142,25 @@ export default function DungeonMaster() {
 
   const handleWorldSetup = () => {
     const world = customWorld.trim() || (selectedGenre ? GENRE_PRESETS[selectedGenre].sample : '');
-    if (!world) {
-      return; // Need world context
-    }
+    if (!world) return;
     setWorldContext(world);
     setSetupStep('character');
   };
 
   const handleGenerateWorld = async () => {
     if (!selectedGenre) return;
-
     setIsGeneratingWorld(true);
     try {
       const response = await api.post('/agent-lab/world-generator', {
         genre: selectedGenre,
-        characterClass: 'Fighter' // Default for now
+        characterClass: 'Fighter'
       });
-
       if (response.data.output?.worldDescription) {
         setCustomWorld(response.data.output.worldDescription);
       } else {
         setCustomWorld(GENRE_PRESETS[selectedGenre].sample);
       }
-    } catch (error) {
-      // Fallback to preset
+    } catch {
       setCustomWorld(GENRE_PRESETS[selectedGenre].sample);
     } finally {
       setIsGeneratingWorld(false);
@@ -189,11 +169,7 @@ export default function DungeonMaster() {
 
   const handleCharacterSetup = () => {
     const name = setupName.trim() || 'Adventurer';
-    const newChar = {
-      ...character,
-      name,
-      class: setupClass
-    };
+    const newChar = { ...character, name, class: setupClass };
 
     // Adjust stats based on class
     if (setupClass === 'Fighter') {
@@ -207,78 +183,49 @@ export default function DungeonMaster() {
     setCharacter(newChar);
     setSetupStep('ready');
 
-    // Create opening narrative based on world context
-    addMessage('dm', worldContext);
-    addMessage('dm', `You are ${name} the ${setupClass}. Your journey in this world begins now...`, { isPrompt: true });
-    addMessage('system', 'Type your actions in the box below. Examples: "I look around" or "I approach the nearest person"');
+    // Opening narrative entry
+    addEntry('narrative', worldContext);
+    addEntry('narrative', `You are ${name} the ${setupClass}. The pages of your story lie blank before you, waiting to be written.`);
   };
 
-  
-  const handleCombatAction = async (action) => {
-    if (!combat) return;
-    setIsLoading(true);
-    addMessage('player', action);
+  // Handle skill check roll from InlineDiceRoller
+  const handleRollResult = async (rollResult) => {
+    if (!pendingRoll) return;
 
+    setIsLoading(true);
     try {
-      const response = await api.post('/dm/combat/action', {
-        encounterId: combat.encounter?.id || combat.id,
-        action
+      // Submit the roll to backend for resolution
+      const response = await api.post('/dm/resolve-roll', {
+        characterId: character.id,
+        rollType: pendingRoll.type,
+        roll: rollResult.roll,
+        skillType: pendingRoll.skillType,
+        dc: pendingRoll.dc,
+        encounterId: pendingRoll.encounterId
       });
 
       const result = response.data;
 
-      if (result.description) {
-        addMessage('dm', result.description);
-      }
+      // Add roll result to narrative
+      const resultText = rollResult.success
+        ? 'Your efforts succeed!'
+        : 'Your attempt falls short.';
 
-      if (result.combatEnded) {
-        addMessage('system', result.victoryMessage || 'Combat ended');
-        setCombat(null);
-      } else {
-        // Update combat state
-        setCombat(result);
-        if (result.activeConditions) {
-          setCombatConditions(result.activeConditions);
-        }
-      }
-    } catch (error) {
-      addMessage('system', 'Combat action failed: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      addEntry('roll', `${pendingRoll.skillType || pendingRoll.type}: ${rollResult.total} vs DC ${pendingRoll.dc} - ${resultText}`);
 
-  const handleInitiativeSubmit = async ({ roll, total, modifier }) => {
-    if (!pendingRoll || pendingRoll.type !== 'initiative') return;
-
-    setIsLoading(true);
-    try {
-      const response = await dm.submitInitiative(
-        pendingRoll.encounterId,
-        roll,
-        character.id
-      );
-
-      const result = response.data;
-
-      // Display initiative results narrative
+      // Add narrative response
       if (result.narrative) {
-        addMessage('dm', result.narrative);
+        addEntry('narrative', result.narrative);
       }
 
-      // Update combat state with new initiative order
-      if (result.combat) {
-        setCombat(result.combat);
-        if (result.combat.activeConditions) {
-          setCombatConditions(result.combat.activeConditions);
-        }
+      // Update combat state if relevant
+      if (result.combatState) {
+        setCombat(result.combatState);
       }
 
-      // Clear pending roll
       setPendingRoll(null);
-
     } catch (error) {
-      addMessage('system', 'Failed to submit initiative: ' + (error.response?.data?.error || error.message));
+      addEntry('system', `Roll failed: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -297,112 +244,62 @@ export default function DungeonMaster() {
       return;
     }
 
-    addMessage('player', playerAction);
+    // Add player action as an italicized entry
+    addEntry('player', playerAction);
 
-    // Check if action triggers combat
-    const actionLower = playerAction.toLowerCase();
-    if (actionLower.includes('attack') || actionLower.includes('fight') || actionLower.includes('combat')) {
-      // Check if there's already active combat
-      await checkActiveCombat();
-    }
     setIsLoading(true);
 
     try {
       const response = await api.post('/dm/interact', {
         character,
         action: playerAction,
-        worldContext: worldContext,
-        recentMessages: messages.slice(-10), // Send last 10 messages for context
-        sessionId: sessionId // Track session for memory consistency
+        worldContext,
+        recentMessages: entries.slice(-10),
+        sessionId
       });
 
       const result = response.data;
 
-      // Store session ID for memory continuity
       if (result.sessionId && !sessionId) {
         setSessionId(result.sessionId);
       }
 
+      // Add DM narrative response
       if (result.narrative) {
-        addMessage('dm', result.narrative);
+        addEntry('narrative', result.narrative);
       }
 
       if (result.continuation) {
-        addMessage('dm', result.continuation, { isPrompt: true });
+        addEntry('narrative', result.continuation);
       }
 
-      // Show orchestration metadata if available
-      if (result.metadata?.validation) {
-        const { score, violations } = result.metadata.validation;
-        if (score < 85) {
-          console.warn(`[DM] Lorekeeper validation score: ${score}, violations: ${violations}`);
+      // Check for pending roll (skill check with player agency)
+      if (result.pendingRoll) {
+        setPendingRoll(result.pendingRoll);
+        // Health conditions come with the pending roll
+        if (result.pendingRoll.healthConditions) {
+          setHealthConditions(result.pendingRoll.healthConditions);
         }
       }
 
-      // Show skill check result if present
-      if (result.skillCheckResult) {
-        const scr = result.skillCheckResult;
-        const emoji = scr.success ? '✅' : '❌';
-        const resultText = scr.success ? 'SUCCESS' : 'FAILURE';
-        addMessage('system',
-          `🎲 ${scr.skillType} Check: ${emoji} ${resultText}\n` +
-          `Roll: ${scr.roll} + modifiers = ${scr.total} vs DC ${scr.dc}\n` +
-          `${scr.modifiersBreakdown}`
-        );
-      }
-
-      if (result.metadata?.questTriggered) {
-        addMessage('system', `Quest Opportunity Detected: ${result.metadata.questSuggestion}`);
-      }
-
-      if (result.achievement) {
-        addMessage('system', `Achievement Unlocked: ${result.achievement}`);
-      }
-
-      // Check if DM response initiated combat
+      // Combat initiated
       if (result.combatState) {
         setCombat(result.combatState);
-        if (result.combatState.activeConditions) {
-          setCombatConditions(result.combatState.activeConditions);
-        }
-      } else if (result.metadata?.combatTriggered && !character.id) {
-        // Combat was detected but can't be initialized without a character ID
-        // Auto-create a database character and retry the action
-        addMessage('system', '⚔️ Combat Detected! Creating character for turn-based combat...');
-        try {
-          const newChar = await api.characters.create(character.name, character.class);
-          const fullChar = { ...character, ...newChar.data };
-          setCharacter(fullChar);
-          addMessage('system', `✅ Character "${fullChar.name}" created! Initializing combat...`);
-
-          // Retry the action with the new character that has an ID
-          const retryResponse = await api.dm.interact({
-            character: fullChar,
-            action: playerAction,
-            worldContext,
-            recentMessages: messages.slice(-10),
-            sessionId: sessionId
-          });
-
-          if (retryResponse.data.combatState) {
-            setCombat(retryResponse.data.combatState);
-            if (retryResponse.data.combatState.activeConditions) {
-              setCombatConditions(retryResponse.data.combatState.activeConditions);
-            }
-            addMessage('system', '⚔️ Combat initialized! Use the combat UI below to take actions.');
-          }
-        } catch (createError) {
-          console.error('Failed to create character:', createError);
-          addMessage('system', '❌ Failed to create character. You need to log in or register first to use combat features.');
+        if (result.combatState.healthConditions) {
+          setHealthConditions(result.combatState.healthConditions);
         }
       }
 
-    } catch (error) {
-      // Fallback response if API fails
+      // Quest triggered
+      if (result.metadata?.questTriggered) {
+        addEntry('system', `A new thread appears in your story: ${result.metadata.questSuggestion}`);
+      }
+
+    } catch {
       const fallback = generateFallbackResponse(playerAction);
-      addMessage('dm', fallback.narrative);
+      addEntry('narrative', fallback.narrative);
       if (fallback.continuation) {
-        addMessage('dm', fallback.continuation, { isPrompt: true });
+        addEntry('narrative', fallback.continuation);
       }
     } finally {
       setIsLoading(false);
@@ -411,46 +308,42 @@ export default function DungeonMaster() {
 
   const handleCommand = (cmd) => {
     const command = cmd.toLowerCase();
-    addMessage('player', cmd);
+    addEntry('player', cmd);
 
     switch (command) {
       case '/status':
-        addMessage('system', `${character.name} the ${character.class} (Level ${character.level})\nSTR: ${character.str} | DEX: ${character.dex} | CON: ${character.con}\nINT: ${character.int} | WIS: ${character.wis} | CHA: ${character.cha}`);
+        addEntry('system', `${character.name} the ${character.class} (Level ${character.level})\nSTR: ${character.str} | DEX: ${character.dex} | CON: ${character.con}\nINT: ${character.int} | WIS: ${character.wis} | CHA: ${character.cha}`);
         break;
       case '/quest':
         requestQuest();
         break;
       case '/help':
-        addMessage('system', 'Commands:\n/status - View character stats\n/quest - Request a new quest\n/clear - Clear chat history\n/help - Show this help');
+        addEntry('system', 'Commands:\n/status - View character stats\n/quest - Request a new quest\n/clear - Clear journal\n/help - Show this help');
         break;
       case '/clear':
-        setMessages([]);
-        addMessage('dm', 'The mists clear... Your adventure continues.');
+        setEntries([]);
+        addEntry('narrative', 'The mists clear... A new page begins.');
         break;
       default:
-        addMessage('system', `Unknown command: ${command}`);
+        addEntry('system', `Unknown command: ${command}`);
     }
   };
 
   const requestQuest = async () => {
     setIsLoading(true);
-    addMessage('system', 'Consulting the Story Coordinator...');
+    addEntry('system', 'Consulting the fates...');
 
     try {
       const response = await api.post('/dm/quest', { character });
       const quest = response.data;
 
       if (quest.title) {
-        addMessage('dm', `NEW QUEST: ${quest.title}\n\n${quest.narrativeHook || quest.description}`);
-        if (quest.objectives?.length) {
-          const objList = quest.objectives.map((o, i) => `${i + 1}. ${o.narrativeDescription || o.description}`).join('\n');
-          addMessage('system', `Objectives:\n${objList}`);
-        }
+        addEntry('narrative', `A new thread weaves into your tale: ${quest.title}\n\n${quest.narrativeHook || quest.description}`);
       } else {
-        addMessage('dm', 'No new quests available at this time. Continue exploring...');
+        addEntry('narrative', 'The threads of fate remain still. Continue your journey...');
       }
-    } catch (error) {
-      addMessage('dm', 'The threads of fate are tangled... Perhaps try again later.');
+    } catch {
+      addEntry('narrative', 'The threads of fate are tangled... Perhaps try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -469,256 +362,278 @@ export default function DungeonMaster() {
     if (actionLower.includes('attack') || actionLower.includes('fight')) {
       return {
         narrative: `Your ${character.class === 'Fighter' ? 'weapon gleams' : character.class === 'Mage' ? 'magic crackles' : 'blade whispers'} as you prepare for combat!`,
-        continuation: 'Roll for initiative! What is your strategy?'
-      };
-    }
-
-    if (actionLower.includes('talk') || actionLower.includes('speak') || actionLower.includes('ask')) {
-      return {
-        narrative: 'You step forward to engage in conversation, your words carrying the weight of your intentions.',
-        continuation: 'The listener turns their attention to you. What do you say?'
+        continuation: 'Roll for initiative!'
       };
     }
 
     return {
-      narrative: `${character.name} ${action}. The world responds to your action, and new possibilities unfold before you.`,
-      continuation: 'What do you do next?'
+      narrative: `${character.name} ${action}. The world responds to your action, and new possibilities unfold.`,
+      continuation: null
     };
+  };
+
+  // Get today's date in journal format
+  const getJournalDate = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   // World Setup Step
   if (setupStep === 'world') {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
-          <h1 className="text-3xl font-bold text-yellow-400 mb-2 text-center">
-            Dungeon Master
+      <JournalPage pageStyle="compact">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-semibold mb-2" style={{ color: 'var(--gold-bright)' }}>
+            Begin Your Tale
           </h1>
-          <p className="text-gray-300 mb-6 text-center">
-            First, let's establish your world
-          </p>
-
-          <div className="space-y-6">
-            <div>
-              <label className="block text-gray-300 mb-3 font-semibold">Choose a Genre</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Object.entries(GENRE_PRESETS).map(([key, genre]) => (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedGenre(key)}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      selectedGenre === key
-                        ? 'border-yellow-400 bg-yellow-900/30'
-                        : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">{genre.icon}</span>
-                      <span className="font-bold text-white">{genre.name}</span>
-                    </div>
-                    <p className="text-sm text-gray-300">{genre.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {selectedGenre && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-gray-300 font-semibold">World Description</label>
-                  <button
-                    onClick={handleGenerateWorld}
-                    disabled={isGeneratingWorld}
-                    className="text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-3 py-1 rounded transition-colors"
-                  >
-                    {isGeneratingWorld ? 'Generating...' : 'Generate with AI'}
-                  </button>
-                </div>
-                <textarea
-                  value={customWorld || GENRE_PRESETS[selectedGenre].sample}
-                  onChange={(e) => setCustomWorld(e.target.value)}
-                  placeholder="Describe your world..."
-                  rows={6}
-                  className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
-                />
-                <p className="text-xs text-gray-400">
-                  Edit the text above to customize your world, or use the AI generator to create something unique.
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={handleWorldSetup}
-              disabled={!selectedGenre && !customWorld.trim()}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 text-gray-900 font-bold py-3 rounded transition-colors"
-            >
-              Next: Create Character
-            </button>
-          </div>
+          <p className="text-lg opacity-70">First, establish the world of your adventure</p>
         </div>
-      </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block mb-3 font-semibold">Choose a Setting</label>
+            <div className="grid gap-3">
+              {Object.entries(GENRE_PRESETS).map(([key, genre]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedGenre(key)}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    selectedGenre === key
+                      ? 'border-amber-600 bg-amber-50/50'
+                      : 'border-gray-300/50 hover:border-amber-400/50'
+                  }`}
+                  style={{ fontFamily: 'var(--font-narrative)' }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{genre.icon}</span>
+                    <span className="font-semibold">{genre.name}</span>
+                  </div>
+                  <p className="text-sm opacity-70">{genre.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedGenre && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold">World Description</label>
+                <button
+                  onClick={handleGenerateWorld}
+                  disabled={isGeneratingWorld}
+                  className="text-sm px-3 py-1 rounded"
+                  style={{
+                    background: 'var(--gold-muted)',
+                    color: 'var(--ink-black)'
+                  }}
+                >
+                  {isGeneratingWorld ? 'Generating...' : 'Generate with AI'}
+                </button>
+              </div>
+              <textarea
+                value={customWorld || GENRE_PRESETS[selectedGenre].sample}
+                onChange={(e) => setCustomWorld(e.target.value)}
+                placeholder="Describe your world..."
+                rows={5}
+                className="journal-input w-full resize-none"
+              />
+            </div>
+          )}
+
+          <button
+            onClick={handleWorldSetup}
+            disabled={!selectedGenre && !customWorld.trim()}
+            className="w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+            style={{
+              background: 'var(--gold-bright)',
+              color: 'var(--leather-dark)'
+            }}
+          >
+            Next: Create Your Hero
+          </button>
+        </div>
+      </JournalPage>
     );
   }
 
   // Character Setup Step
   if (setupStep === 'character') {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full">
-          <h1 className="text-3xl font-bold text-yellow-400 mb-2 text-center">
-            Dungeon Master
+      <JournalPage pageStyle="compact">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-semibold mb-2" style={{ color: 'var(--gold-bright)' }}>
+            Create Your Hero
           </h1>
-          <p className="text-gray-300 mb-6 text-center">
-            Create your character to begin the adventure
-          </p>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-gray-300 mb-2">Character Name</label>
-              <input
-                type="text"
-                value={setupName}
-                onChange={(e) => setSetupName(e.target.value)}
-                placeholder="Enter your name..."
-                className="w-full bg-gray-700 text-white rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-300 mb-2">Class</label>
-              <select
-                value={setupClass}
-                onChange={(e) => setSetupClass(e.target.value)}
-                className="w-full bg-gray-700 text-white rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="Fighter">Fighter (Strength & Constitution)</option>
-                <option value="Mage">Mage (Intelligence & Wisdom)</option>
-                <option value="Rogue">Rogue (Dexterity & Charisma)</option>
-              </select>
-            </div>
-
-            <button
-              onClick={handleCharacterSetup}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded transition-colors"
-            >
-              Begin Adventure
-            </button>
-          </div>
+          <p className="text-lg opacity-70">Who will write their name in this tale?</p>
         </div>
-      </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block mb-2 font-semibold">Your Name</label>
+            <input
+              type="text"
+              value={setupName}
+              onChange={(e) => setSetupName(e.target.value)}
+              placeholder="Enter your name..."
+              className="journal-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-semibold">Your Calling</label>
+            <select
+              value={setupClass}
+              onChange={(e) => setSetupClass(e.target.value)}
+              className="journal-input w-full"
+            >
+              <option value="Fighter">Fighter - Master of Strength & Steel</option>
+              <option value="Mage">Mage - Wielder of Arcane Power</option>
+              <option value="Rogue">Rogue - Shadow and Cunning</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleCharacterSetup}
+            className="w-full py-3 rounded-lg font-semibold"
+            style={{
+              background: 'var(--gold-bright)',
+              color: 'var(--leather-dark)'
+            }}
+          >
+            Begin Your Story
+          </button>
+        </div>
+      </JournalPage>
     );
   }
 
+  // Main Journal View
+  const marginContent = combat ? (
+    <CombatMargin
+      combat={combat}
+      healthConditions={healthConditions}
+    />
+  ) : healthConditions.length > 0 ? (
+    <div className="space-y-2">
+      <div className="text-xs uppercase tracking-wider opacity-60">Your Conditions</div>
+      {healthConditions.map((condition, i) => (
+        <div
+          key={i}
+          className={`health-buff ${condition.type === 'debuff' ? 'debuff' : ''}`}
+        >
+          <span>{condition.icon}</span>
+          <span>{condition.name}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Header */}
-      <div className="bg-gray-800 p-4 border-b border-gray-700">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors flex items-center gap-2"
-            >
-              ← Dashboard
-            </button>
-            <h1 className="text-2xl font-bold text-yellow-400">Dungeon Master</h1>
-          </div>
-          <div className="text-gray-300 text-sm">
-            {character.name} the {character.class} | Level {character.level}
-          </div>
+    <JournalPage
+      hasMargin={!!combat || healthConditions.length > 0}
+      marginContent={marginContent}
+      showHeader={true}
+      headerContent={getJournalDate()}
+    >
+      {/* Character header */}
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed" style={{ borderColor: 'var(--ink-light)' }}>
+        <div className="handwritten text-xl">
+          {character.name} the {character.class}
+        </div>
+        <div className="text-sm opacity-60">
+          Level {character.level}
         </div>
       </div>
 
+      {/* Narrative entries - continuous prose */}
+      <div className="space-y-4 min-h-[50vh]">
+        {entries.map((entry, index) => (
+          <div key={entry.id} className="animate-fade-in">
+            {entry.type === 'narrative' && (
+              <p className={index === 0 ? '' : ''}>
+                {entry.content}
+              </p>
+            )}
 
-          {/* Combat UI */}
-          {combat && (
-            <CombatUI
-              combat={combat}
-              onAction={handleCombatAction}
-              isLoading={isLoading}
-            />
-          )}
+            {entry.type === 'player' && (
+              <p className="italic opacity-80" style={{ color: 'var(--ink-faded)' }}>
+                {entry.content}
+              </p>
+            )}
 
-          {/* Dice Roller - Initiative, Attack, Skill Checks */}
-          {pendingRoll && (
-            <div className="max-w-4xl mx-auto mb-4">
-              <DiceRoller
-                diceType="d20"
-                modifier={pendingRoll.modifier}
-                modifierLabel={pendingRoll.modifierLabel}
-                purpose={pendingRoll.type}
-                onRollSubmit={handleInitiativeSubmit}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`${
-                msg.type === 'player'
-                  ? 'ml-12 bg-blue-900/50'
-                  : msg.type === 'dm'
-                  ? 'mr-12 bg-yellow-900/30'
-                  : 'mx-auto max-w-lg bg-gray-700/50'
-              } rounded-lg p-4`}
-            >
-              <div className="text-xs text-gray-400 mb-1">
-                {msg.type === 'player' ? 'You' : msg.type === 'dm' ? 'DM' : 'System'}
+            {entry.type === 'system' && (
+              <div className="my-4 py-2 px-4 rounded bg-amber-100/30 text-sm" style={{ borderLeft: '3px solid var(--gold-muted)' }}>
+                {entry.content}
               </div>
-              <div
-                className={`${
-                  msg.type === 'player'
-                    ? 'text-blue-200'
-                    : msg.type === 'dm'
-                    ? msg.isPrompt
-                      ? 'text-yellow-300 italic'
-                      : 'text-yellow-100'
-                    : 'text-gray-300'
-                } whitespace-pre-wrap`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
+            )}
 
-          {isLoading && (
-            <div className="mr-12 bg-yellow-900/30 rounded-lg p-4">
-              <div className="text-xs text-gray-400 mb-1">DM</div>
-              <div className="text-yellow-300">
-                <span className="animate-pulse">The DM considers your action...</span>
+            {entry.type === 'roll' && (
+              <div className="roll-result inline-block my-2">
+                🎲 {entry.content}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        ))}
 
-          <div ref={messagesEndRef} />
-        </div>
+        {/* Pending roll - inline dice roller */}
+        {pendingRoll && (
+          <InlineDiceRoller
+            rollType={pendingRoll.type}
+            skillName={pendingRoll.skillType}
+            modifier={pendingRoll.totalModifier}
+            dc={pendingRoll.dc}
+            advantage={pendingRoll.advantage}
+            disadvantage={pendingRoll.disadvantage}
+            healthConditions={pendingRoll.healthConditions}
+            onRoll={handleRollResult}
+            isLoading={isLoading}
+          />
+        )}
+
+        {/* Loading state */}
+        {isLoading && !pendingRoll && (
+          <p className="italic animate-pulse opacity-60">
+            The quill hovers, waiting...
+          </p>
+        )}
+
+        <div ref={entriesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-gray-800 p-4 border-t border-gray-700">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex gap-2">
+      {/* Divider */}
+      <div className="journal-divider" />
+
+      {/* Input area */}
+      <form onSubmit={handleSubmit} className="mt-6">
+        <div className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="What do you do? (or type /help for commands)"
-            disabled={isLoading}
-            className="flex-1 bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 disabled:opacity-50"
+            placeholder="What do you do next? (or /help for commands)"
+            disabled={isLoading || !!pendingRoll}
+            className="journal-input flex-1"
           />
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
-            className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 text-gray-900 font-bold px-6 py-3 rounded transition-colors"
+            disabled={isLoading || !input.trim() || !!pendingRoll}
+            className="px-6 py-3 rounded-lg font-semibold transition-all disabled:opacity-50"
+            style={{
+              background: 'var(--gold-bright)',
+              color: 'var(--leather-dark)'
+            }}
           >
-            Send
+            Write
           </button>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+
+      {/* Bottom padding for navigation */}
+      <div className="h-20" />
+    </JournalPage>
   );
 }

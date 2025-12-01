@@ -22,7 +22,7 @@ export default function Login() {
       const { token, user } = response.data;
 
       setAuth(user, token);
-      navigate('/dashboard');
+      navigate('/journal');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {

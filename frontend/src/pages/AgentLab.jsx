@@ -758,7 +758,7 @@ export default function AgentLab() {
               <div className="bg-gray-800 p-4 rounded-lg">
                 <h2 className="text-lg font-semibold mb-3 text-amber-300">Quick Tips</h2>
                 <ul className="list-disc list-inside space-y-2 text-sm text-gray-300">
-                  <li><strong>World Generator:</strong> Creates a PERSONAL narrative world based on genre + class + goals. No more generic "Vitalia"!</li>
+                  <li><strong>World Generator:</strong> Creates a PERSONAL narrative world based on genre + class + goals. Generates unique settings!</li>
                   <li><strong className="text-purple-400">Narrative Director:</strong> Master orchestrator - coordinates all agents with RAG, validation, storylets</li>
                   <li><strong>Story Coordinator:</strong> Tests what theme/type of quest is needed based on character progression</li>
                   <li><strong>Quest Creator:</strong> Generates full quest narratives. Check for repetitive titles!</li>

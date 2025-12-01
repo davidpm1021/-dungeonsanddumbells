@@ -1,18 +1,17 @@
 const db = require('../config/database');
+const HealthConditionService = require('./healthConditionService');
 
 /**
  * Skill Check Service
  *
  * Handles D&D 5e skill check mechanics:
- * - Rolls d20 with advantage/disadvantage
- * - Calculates modifiers (ability + proficiency)
+ * - Prepares skill checks with modifier info (for player agency)
+ * - Resolves checks with player's dice roll
+ * - Calculates modifiers (ability + proficiency + health conditions)
  * - Logs results to database
  * - Returns narrative-friendly results
  *
- * This service uses the PostgreSQL functions created in migration 005:
- * - perform_skill_check() - Rolls check and logs to history
- * - roll_d20() - Handles advantage/disadvantage
- * - get_ability_modifier() - Calculates modifier from stat value
+ * PLAYER AGENCY: Never roll for the player! Use prepareCheck() + resolveCheck()
  */
 class SkillCheckService {
   /**
@@ -72,7 +71,195 @@ class SkillCheckService {
   }
 
   /**
+   * PLAYER AGENCY: Prepare a skill check WITHOUT rolling
+   * Returns modifier info so player can roll their own dice
+   *
+   * @param {number} characterId - Character ID
+   * @param {string} skillType - Skill name (e.g., "Athletics", "Perception")
+   * @param {number} dc - Difficulty Class
+   * @param {Object} options - Optional parameters
+   * @returns {Promise<Object>} - Pending roll info for frontend
+   */
+  async prepareCheck(characterId, skillType, dc, options = {}) {
+    try {
+      console.log(`[SkillCheckService] Preparing ${skillType} check DC${dc} for character ${characterId}`);
+
+      const { narrativeContext = null, advantage = false, disadvantage = false } = options;
+
+      // Get character stats
+      const charResult = await db.query(
+        `SELECT
+          cs.str, cs.dex, cs.con, cs.int, cs.wis, cs.cha,
+          ccs.proficiency_bonus, ccs.skill_proficiencies
+        FROM character_stats cs
+        LEFT JOIN character_combat_stats ccs ON cs.id = ccs.character_id
+        WHERE cs.id = $1`,
+        [characterId]
+      );
+
+      if (charResult.rows.length === 0) {
+        throw new Error(`Character ${characterId} not found`);
+      }
+
+      const char = charResult.rows[0];
+
+      // Determine which ability score the skill uses
+      const skillAbility = this.getSkillAbility(skillType);
+      const statValue = char[skillAbility.toLowerCase()] || 10;
+      const abilityModifier = Math.floor((statValue - 10) / 2);
+
+      // Check if character is proficient in this skill
+      const skillProficiencies = char.skill_proficiencies || [];
+      const isProficient = skillProficiencies.includes(skillType);
+      const proficiencyBonus = isProficient ? (char.proficiency_bonus || 2) : 0;
+
+      // Get health condition modifiers (fitness affects skill checks!)
+      let healthModifier = 0;
+      let healthConditions = [];
+      try {
+        const healthMods = await HealthConditionService.calculateTotalStatModifiers(characterId);
+        healthConditions = await HealthConditionService.getActiveConditions(characterId);
+
+        // Apply health modifier for the relevant ability
+        healthModifier = healthMods[skillAbility] || 0;
+
+        // Also check for skill check modifier from conditions
+        for (const condition of healthConditions) {
+          if (condition.skill_check_modifier) {
+            healthModifier += condition.skill_check_modifier;
+          }
+        }
+      } catch (err) {
+        console.log('[SkillCheckService] Could not fetch health modifiers:', err.message);
+      }
+
+      // Calculate total modifier
+      const totalModifier = abilityModifier + proficiencyBonus + healthModifier;
+
+      // Build modifier breakdown for display
+      let modifierParts = [`${skillAbility}(${abilityModifier >= 0 ? '+' : ''}${abilityModifier})`];
+      if (isProficient) modifierParts.push(`Prof(+${proficiencyBonus})`);
+      if (healthModifier !== 0) modifierParts.push(`Health(${healthModifier >= 0 ? '+' : ''}${healthModifier})`);
+
+      return {
+        type: 'skill_check',
+        pending: true,
+        skillType,
+        dc,
+        totalModifier,
+        modifierBreakdown: modifierParts.join(' + '),
+        displayText: `Roll d20 + ${totalModifier} vs DC ${dc}`,
+        promptText: `Roll ${skillType}! d20 ${totalModifier >= 0 ? '+' : ''}${totalModifier}`,
+        advantage,
+        disadvantage,
+        narrativeContext,
+        healthConditions: healthConditions.map(c => ({
+          name: c.condition_name,
+          type: c.condition_type,
+          icon: this.getConditionIcon(c.condition_name)
+        })),
+        // Store for resolution
+        _internal: {
+          characterId,
+          abilityModifier,
+          proficiencyBonus,
+          healthModifier,
+          skillAbility,
+          isProficient
+        }
+      };
+
+    } catch (error) {
+      console.error('[SkillCheckService] Error preparing check:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get icon for health condition
+   */
+  getConditionIcon(conditionName) {
+    const icons = {
+      'Well-Rested': '✨',
+      'Fatigued': '😴',
+      'Battle-Ready': '💪',
+      'Unstoppable': '🔥',
+      'Deconditioned': '😔',
+      'Overtrained': '😩',
+      'Inactive': '😶'
+    };
+    return icons[conditionName] || '⚡';
+  }
+
+  /**
+   * PLAYER AGENCY: Resolve a skill check WITH player's roll
+   *
+   * @param {number} characterId - Character ID
+   * @param {string} skillType - Skill name
+   * @param {number} dc - Difficulty Class
+   * @param {number} playerRoll - Player's d20 roll (1-20)
+   * @param {Object} options - Optional parameters
+   * @returns {Promise<Object>} - Skill check result
+   */
+  async resolveCheck(characterId, skillType, dc, playerRoll, options = {}) {
+    try {
+      console.log(`[SkillCheckService] Resolving ${skillType} check: player rolled ${playerRoll}`);
+
+      const { narrativeContext = null, advantage = false, disadvantage = false } = options;
+
+      // Get prepared check info (we need the modifiers)
+      const prepared = await this.prepareCheck(characterId, skillType, dc, options);
+
+      // Calculate total using player's roll
+      const total = playerRoll + prepared.totalModifier;
+      const success = total >= dc;
+
+      // Determine critical success/failure
+      const isCriticalSuccess = playerRoll === 20;
+      const isCriticalFailure = playerRoll === 1;
+
+      // Log to database
+      try {
+        await db.query(
+          `INSERT INTO skill_check_history
+          (character_id, skill_type, dc, roll_result, total_result, success,
+           ability_modifier, proficiency_bonus, advantage, disadvantage, narrative_context)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [characterId, skillType, dc, playerRoll, total, success,
+           prepared._internal.abilityModifier, prepared._internal.proficiencyBonus,
+           advantage, disadvantage, narrativeContext]
+        );
+      } catch (logErr) {
+        console.log('[SkillCheckService] Could not log skill check:', logErr.message);
+      }
+
+      const modifiersBreakdown = `d20(${playerRoll}) + ${prepared.modifierBreakdown} = ${total} vs DC ${dc}`;
+
+      return {
+        roll: playerRoll,
+        total,
+        dc,
+        success,
+        criticalSuccess: isCriticalSuccess,
+        criticalFailure: isCriticalFailure,
+        modifiersBreakdown,
+        skillType,
+        advantage,
+        disadvantage,
+        narrativeContext,
+        healthConditions: prepared.healthConditions,
+        playerRolled: true // Flag indicating player rolled their own dice
+      };
+
+    } catch (error) {
+      console.error('[SkillCheckService] Error resolving check:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Fallback skill check implementation (if database function fails)
+   * @deprecated Use prepareCheck + resolveCheck for player agency
    */
   async performCheckFallback(characterId, skillType, dc, options = {}) {
     console.log('[SkillCheckService] Using fallback implementation');

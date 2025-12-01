@@ -314,6 +314,15 @@ ${threads}
 - Character qualities: ${Object.keys(context.characterQualities || {}).length > 0 ? JSON.stringify(context.characterQualities) : 'None yet'}
 ${context.worldContext ? `\n## WORLD CONTEXT\n${JSON.stringify(context.worldContext, null, 2)}` : ''}
 
+## REAL-WORLD FITNESS CONTEXT (Critical for Narrative Integration!)
+${context.fitnessContext ? context.fitnessContext : 'No fitness activity data available.'}
+${context.fitnessEngagement ? `Player engagement level: ${context.fitnessEngagement}` : ''}
+${context.activityTriggers && context.activityTriggers.length > 0 ? `
+**Activity Triggers to Consider:**
+${context.activityTriggers.map(t => `- ${t.type}: ${t.suggestion}`).join('\n')}
+
+Use these triggers to inform narrative decisions. A player on a 7-day streak should be acknowledged by NPCs. An inactive player needs gentle encouragement, not punishment.` : ''}
+
 ## NARRATIVE THEME PROGRESSION
 Choose themes based on player's story arc, NOT game mechanics:
 
@@ -400,7 +409,7 @@ The player should feel like they're:
 - Uncovering mysteries and making discoveries
 - Part of something larger than themselves
 
-**CRITICAL**: NO references to game mechanics, stat training, pillars, experience points, or leveling up. Frame EVERYTHING through narrative.
+**CRITICAL**: NO references to game mechanics, stat training, foundations, experience points, or leveling up. Frame EVERYTHING through narrative.
 
 ## NARRATIVE REQUIREMENTS
 1. **Opening Scene** (100-150 words): Set the scene dramatically. Where are they? Who do they meet? What's the tension?

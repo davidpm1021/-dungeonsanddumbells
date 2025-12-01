@@ -53,9 +53,9 @@ const createMockQuest = (overrides = {}) => ({
   openingScene: 'You stand before the crumbling entrance of an ancient temple...',
   questType: 'main',
   difficulty: 'medium',
-  npcInvolved: 'Elder Thorne',
+  npcInvolved: 'Warden Kael',
   npcDialogue: {
-    npcName: 'Elder Thorne',
+    npcName: 'Warden Kael',
     opening: 'Ah, young warrior. I have a task that requires your... unique talents.',
     completion: 'Well done. Your strength grows with each trial.'
   },
@@ -1175,7 +1175,7 @@ router.post('/knowledge-graph', async (req, res) => {
 
       case 'query_relationships':
         // Query specific relationships
-        const query = req.body.query || { entityName: 'Elder Thorne' };
+        const query = req.body.query || { entityName: 'Warden Kael' };
         result = await knowledgeGraph.queryRelationships(character.id, query);
         break;
 
