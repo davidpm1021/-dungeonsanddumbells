@@ -3,7 +3,20 @@
 
 $pgvectorVersion = "0.7.4"
 $pgPath = "C:\Program Files\PostgreSQL\16"
-$dbPassword = "REDACTED_PASSWORD"
+
+# NOTE: For security, do NOT hard-code your database password here.
+# Option 1 (recommended): store in environment variable and read it:
+#   $dbPassword = $env:DB_PASSWORD
+# Option 2: prompt interactively when running the script:
+#   $dbPassword = Read-Host -AsSecureString "Enter PostgreSQL password for user 'postgres'"
+#   $dbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+#       [Runtime.InteropServices.Marshal]::SecureStringToBSTR($dbPassword)
+#   )
+#   $dbPassword = $dbPasswordPlain
+#
+# The line below expects DB_PASSWORD to be set in your environment.
+$dbPassword = $env:DB_PASSWORD
+
 $projectPath = "C:\Users\david\Cursor Projects\-dungeonsanddumbells"
 
 Write-Host ""

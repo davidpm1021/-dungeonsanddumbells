@@ -7,7 +7,9 @@ const pool = new Pool({
   port: 5432,
   database: 'dumbbells_dragons_dev',
   user: 'postgres',
-  password: 'REDACTED_PASSWORD',
+  // Database password should be provided via environment variable in backend/.env
+  // Example: DB_PASSWORD=your_strong_password_here
+  password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
